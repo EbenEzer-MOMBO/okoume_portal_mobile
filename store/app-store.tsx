@@ -1,14 +1,16 @@
-import { createContext, useContext, useMemo, useReducer, type ReactNode } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { createContext, useContext, useEffect, useMemo, useReducer, type ReactNode } from 'react';
 
-import { DEFAULT_ROOM_ID, ROOMS, ROOM_TYPES, Room, RoomType } from '@/constants/hotel';
-import { PaymentOptionId, Quote, computeQuote } from '@/lib/booking';
+import { ChambreDisponible } from '@/lib/api/types';
+import { PaymentOptionId } from '@/lib/booking';
+import { ROOM_TYPES, RoomType } from '@/constants/hotel';
 
-export type StayStatus = 'avenir' | 'encours' | 'termine' | 'aucune';
-export type NotificationKind = 'confirm' | 'clock' | 'promo';
+/** Clé AsyncStorage : références de réservation suivies sur cet appareil (la plus récente en tête). */
+const TRACKED_REFERENCES_KEY = 'okoume.trackedReferences';
 
-export type AppNotification = {
+export type LocalNotification = {
   id: string;
-  kind: NotificationKind;
+  reference: string;
   title: string;
   body: string;
   time: string;
@@ -22,70 +24,41 @@ export type NotificationPrefs = {
 };
 
 type State = {
-  authenticated: boolean;
   search: { arrival: number; departure: number; roomType: RoomType; guests: string };
-  booking: { roomId: string; paymentOption: PaymentOptionId | null; paymentMethodId: string | null };
-  reference: string;
-  stayStatus: StayStatus;
-  notifications: AppNotification[];
+  selectedRoom: ChambreDisponible | null;
+  /** Modalité de paiement choisie sur le Récapitulatif, lue par l'écran Paiement. */
+  paymentOption: PaymentOptionId | null;
+  trackedReferences: string[];
+  referencesHydrated: boolean;
+  notifications: LocalNotification[];
   prefs: NotificationPrefs;
 };
 
 type Action =
-  | { type: 'signIn' }
-  | { type: 'signOut' }
   | { type: 'setDates'; arrival: number; departure: number }
   | { type: 'setRoomType'; roomType: RoomType }
   | { type: 'setGuests'; guests: string }
-  | { type: 'selectRoom'; roomId: string }
+  | { type: 'selectRoom'; room: ChambreDisponible }
   | { type: 'setPaymentOption'; option: PaymentOptionId }
-  | { type: 'setPaymentMethod'; methodId: string }
-  | { type: 'confirmBooking' }
+  | { type: 'hydrateReferences'; references: string[] }
+  | { type: 'trackReference'; reference: string }
+  | { type: 'addNotification'; notification: LocalNotification }
   | { type: 'readNotification'; id: string }
   | { type: 'readAllNotifications' }
   | { type: 'togglePref'; key: keyof NotificationPrefs };
 
 const INITIAL_STATE: State = {
-  authenticated: false,
   search: { arrival: 12, departure: 15, roomType: ROOM_TYPES[0], guests: '2' },
-  booking: { roomId: DEFAULT_ROOM_ID, paymentOption: null, paymentMethodId: null },
-  reference: 'OKM-2026-0413',
-  stayStatus: 'avenir',
-  notifications: [
-    {
-      id: 'n1',
-      kind: 'confirm',
-      title: 'Réservation confirmée',
-      body: 'Votre séjour du 12 au 15 septembre est confirmé.',
-      time: 'Il y a 2 h',
-      unread: true,
-    },
-    {
-      id: 'n2',
-      kind: 'clock',
-      title: 'Préparez votre arrivée',
-      body: "Le check-in est possible dès 14 h. Pensez à votre pièce d'identité.",
-      time: 'Hier',
-      unread: true,
-    },
-    {
-      id: 'n3',
-      kind: 'promo',
-      title: 'Offre séjour long',
-      body: "-15 % à partir de cinq nuits, jusqu'au 30 septembre.",
-      time: 'Il y a 3 jours',
-      unread: false,
-    },
-  ],
+  selectedRoom: null,
+  paymentOption: null,
+  trackedReferences: [],
+  referencesHydrated: false,
+  notifications: [],
   prefs: { push: true, email: true, promos: false },
 };
 
 function reducer(state: State, action: Action): State {
   switch (action.type) {
-    case 'signIn':
-      return { ...state, authenticated: true };
-    case 'signOut':
-      return { ...state, authenticated: false };
     case 'setDates':
       return { ...state, search: { ...state.search, arrival: action.arrival, departure: action.departure } };
     case 'setRoomType':
@@ -93,13 +66,17 @@ function reducer(state: State, action: Action): State {
     case 'setGuests':
       return { ...state, search: { ...state.search, guests: action.guests } };
     case 'selectRoom':
-      return { ...state, booking: { ...state.booking, roomId: action.roomId } };
+      return { ...state, selectedRoom: action.room };
     case 'setPaymentOption':
-      return { ...state, booking: { ...state.booking, paymentOption: action.option } };
-    case 'setPaymentMethod':
-      return { ...state, booking: { ...state.booking, paymentMethodId: action.methodId } };
-    case 'confirmBooking':
-      return { ...state, stayStatus: 'avenir' };
+      return { ...state, paymentOption: action.option };
+    case 'hydrateReferences':
+      return { ...state, trackedReferences: action.references, referencesHydrated: true };
+    case 'trackReference': {
+      const next = [action.reference, ...state.trackedReferences.filter((ref) => ref !== action.reference)];
+      return { ...state, trackedReferences: next };
+    }
+    case 'addNotification':
+      return { ...state, notifications: [action.notification, ...state.notifications] };
     case 'readNotification':
       return {
         ...state,
@@ -116,22 +93,17 @@ function reducer(state: State, action: Action): State {
 
 type AppStore = {
   state: State;
-  /** Chambre actuellement sélectionnée. */
-  room: Room;
-  /** Devis calculé pour la chambre, les dates et la modalité en cours. */
-  quote: Quote;
-  hasStay: boolean;
+  /** Référence de séjour la plus récente suivie sur cet appareil. */
+  activeReference: string | null;
   unreadCount: number;
   actions: {
-    signIn: () => void;
-    signOut: () => void;
     setDates: (arrival: number, departure: number) => void;
     setRoomType: (roomType: RoomType) => void;
     setGuests: (guests: string) => void;
-    selectRoom: (roomId: string) => void;
+    selectRoom: (room: ChambreDisponible) => void;
     setPaymentOption: (option: PaymentOptionId) => void;
-    setPaymentMethod: (methodId: string) => void;
-    confirmBooking: () => void;
+    trackReference: (reference: string) => void;
+    addNotification: (notification: Omit<LocalNotification, 'id'>) => void;
     readNotification: (id: string) => void;
     readAllNotifications: () => void;
     togglePref: (key: keyof NotificationPrefs) => void;
@@ -143,25 +115,40 @@ const AppStoreContext = createContext<AppStore | null>(null);
 export function AppStoreProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, INITIAL_STATE);
 
+  useEffect(() => {
+    AsyncStorage.getItem(TRACKED_REFERENCES_KEY).then((raw) => {
+      const references: string[] = raw ? JSON.parse(raw) : [];
+      dispatch({ type: 'hydrateReferences', references });
+    });
+  }, []);
+
   const value = useMemo<AppStore>(() => {
-    const room = ROOMS.find((r) => r.id === state.booking.roomId) ?? ROOMS[0];
+    const trackReference = (reference: string) => {
+      dispatch({ type: 'trackReference', reference });
+      AsyncStorage.getItem(TRACKED_REFERENCES_KEY).then((raw) => {
+        const current: string[] = raw ? JSON.parse(raw) : [];
+        const next = [reference, ...current.filter((ref) => ref !== reference)];
+        AsyncStorage.setItem(TRACKED_REFERENCES_KEY, JSON.stringify(next));
+      });
+    };
+
+    const addNotification = (notification: Omit<LocalNotification, 'id'>) => {
+      const id = `local-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      dispatch({ type: 'addNotification', notification: { ...notification, id } });
+    };
 
     return {
       state,
-      room,
-      quote: computeQuote(room, state.search.arrival, state.search.departure, state.booking.paymentOption),
-      hasStay: state.stayStatus !== 'aucune',
+      activeReference: state.trackedReferences[0] ?? null,
       unreadCount: state.notifications.filter((n) => n.unread).length,
       actions: {
-        signIn: () => dispatch({ type: 'signIn' }),
-        signOut: () => dispatch({ type: 'signOut' }),
         setDates: (arrival, departure) => dispatch({ type: 'setDates', arrival, departure }),
         setRoomType: (roomType) => dispatch({ type: 'setRoomType', roomType }),
         setGuests: (guests) => dispatch({ type: 'setGuests', guests }),
-        selectRoom: (roomId) => dispatch({ type: 'selectRoom', roomId }),
+        selectRoom: (room) => dispatch({ type: 'selectRoom', room }),
         setPaymentOption: (option) => dispatch({ type: 'setPaymentOption', option }),
-        setPaymentMethod: (methodId) => dispatch({ type: 'setPaymentMethod', methodId }),
-        confirmBooking: () => dispatch({ type: 'confirmBooking' }),
+        trackReference,
+        addNotification,
         readNotification: (id) => dispatch({ type: 'readNotification', id }),
         readAllNotifications: () => dispatch({ type: 'readAllNotifications' }),
         togglePref: (key) => dispatch({ type: 'togglePref', key }),

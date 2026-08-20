@@ -1,0 +1,86 @@
+import { API_URL } from '@/lib/env';
+
+export class ApiError extends Error {
+  status: number;
+  /** Corps de la réponse d'erreur, quand le serveur en renvoie un (JSON ou texte). */
+  body?: unknown;
+
+  constructor(status: number, message: string, body?: unknown) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+    this.body = body;
+  }
+}
+
+/**
+ * Fournit le token Clerk courant pour les routes qui en ont besoin.
+ * Posé au démarrage par `ClerkTokenBridge` (voir app/_layout.tsx) : les hooks React
+ * n'ont pas leur place dans un module non-React comme celui-ci.
+ */
+let getAuthToken: (() => Promise<string | null>) | null = null;
+
+export function setAuthTokenGetter(getter: (() => Promise<string | null>) | null) {
+  getAuthToken = getter;
+}
+
+export type RequestOptions = {
+  method?: 'GET' | 'POST' | 'PATCH' | 'DELETE';
+  body?: unknown;
+  /** Ajoute l'en-tête Authorization: Bearer <token Clerk>. Échoue si aucune session. */
+  authenticated?: boolean;
+  signal?: AbortSignal;
+};
+
+async function parseBody(response: Response): Promise<unknown> {
+  const text = await response.text();
+  if (!text) return undefined;
+  try {
+    return JSON.parse(text);
+  } catch {
+    return text;
+  }
+}
+
+function extractMessage(body: unknown, fallback: string): string {
+  if (body && typeof body === 'object' && 'message' in body && typeof body.message === 'string') {
+    return body.message;
+  }
+  if (typeof body === 'string' && body) return body;
+  return fallback;
+}
+
+export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
+  const { method = 'GET', body, authenticated = false, signal } = options;
+
+  const headers: Record<string, string> = { Accept: 'application/json' };
+  if (body !== undefined) headers['Content-Type'] = 'application/json';
+
+  if (authenticated) {
+    const token = await getAuthToken?.();
+    if (!token) {
+      throw new ApiError(401, 'Connexion requise pour cette action.');
+    }
+    headers.Authorization = `Bearer ${token}`;
+  }
+
+  let response: Response;
+  try {
+    response = await fetch(`${API_URL}${path}`, {
+      method,
+      headers,
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+      signal,
+    });
+  } catch {
+    throw new ApiError(0, 'Impossible de joindre le serveur. Vérifiez votre connexion.');
+  }
+
+  const parsed = await parseBody(response);
+
+  if (!response.ok) {
+    throw new ApiError(response.status, extractMessage(parsed, `Erreur serveur (${response.status}).`), parsed);
+  }
+
+  return parsed as T;
+}

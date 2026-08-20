@@ -1,4 +1,4 @@
-import { DEPOSIT_RATE, Room, STAY_TAX } from '@/constants/hotel';
+import { DEPOSIT_RATE, STAY_TAX } from '@/constants/hotel';
 import { countNights } from '@/lib/format';
 
 export type PaymentOptionId = 'acompte' | 'integral' | 'arrivee';
@@ -15,13 +15,13 @@ export type Quote = {
 };
 
 export function computeQuote(
-  room: Room,
+  nightlyPrice: number,
   arrival: number,
   departure: number,
   paymentOption: PaymentOptionId | null
 ): Quote {
   const nights = countNights(arrival, departure);
-  const subtotal = room.price * nights;
+  const subtotal = nightlyPrice * nights;
   const total = subtotal + STAY_TAX;
   const due =
     paymentOption === 'integral' ? total : paymentOption === 'acompte' ? Math.round(total * DEPOSIT_RATE) : 0;

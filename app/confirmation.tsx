@@ -7,30 +7,57 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Divider } from '@/components/ui/divider';
 import { Icon } from '@/components/ui/icon';
+import { LoadingState } from '@/components/ui/query-state';
 import { Screen } from '@/components/ui/screen';
 import { ScreenScroll } from '@/components/ui/screen-scroll';
 import { SummaryRow } from '@/components/ui/summary-row';
 import { Text } from '@/components/ui/text';
 import { useToast } from '@/components/ui/toast';
 import { Colors, Radius, Spacing } from '@/constants/theme';
-import { formatAmount, formatDay, formatRange } from '@/lib/format';
+import { computeQuote } from '@/lib/booking';
+import { formatAmount, formatRange } from '@/lib/format';
+import { useActiveStay } from '@/lib/queries/reservations';
 import { useAppStore } from '@/store/app-store';
 
+const HEADLINE_BY_STATUT: Record<string, string> = {
+  en_attente: 'Demande envoyée',
+  confirmee: 'Réservation confirmée',
+  checkin: 'Réservation confirmée',
+  annulee: 'Demande refusée',
+};
+
+const SUBTITLE_BY_STATUT: Record<string, string> = {
+  en_attente: 'La réception va examiner votre demande et vous répondra sous 24 h.',
+  confirmee: 'Un email de confirmation vous a été envoyé.',
+  checkin: 'Un email de confirmation vous a été envoyé.',
+  annulee: 'Cette demande n’a pas pu être confirmée. Contactez la réception.',
+};
+
 export default function ConfirmationScreen() {
-  const { state, room, quote, actions } = useAppStore();
+  const { state } = useAppStore();
+  const { reference, query } = useActiveStay();
   const insets = useSafeAreaInsets();
   const showToast = useToast();
-  const { arrival, departure } = state.search;
+  const room = state.selectedRoom;
 
   const copyReference = async () => {
-    await Clipboard.setStringAsync(state.reference);
+    if (!reference) return;
+    await Clipboard.setStringAsync(reference);
     showToast('Numéro de réservation copié');
   };
 
-  const finish = () => {
-    actions.confirmBooking();
-    router.replace('/(tabs)/sejour');
-  };
+  if (query.isLoading || !room || !reference) {
+    return (
+      <Screen>
+        <ScreenScroll paddingTop={96}>
+          <LoadingState />
+        </ScreenScroll>
+      </Screen>
+    );
+  }
+
+  const statut = query.data?.statut ?? 'en_attente';
+  const quote = computeQuote(room.tarif_nuit, state.search.arrival, state.search.departure, state.paymentOption);
 
   return (
     <Screen>
@@ -40,10 +67,10 @@ export default function ConfirmationScreen() {
         </View>
 
         <Text variant="title" style={styles.title}>
-          Réservation{'\n'}confirmée
+          {HEADLINE_BY_STATUT[statut] ?? HEADLINE_BY_STATUT.en_attente}
         </Text>
         <Text variant="body" tone="muted" style={styles.subtitle}>
-          Un email de confirmation vous a été envoyé. Nous vous attendons le {formatDay(arrival)}.
+          {SUBTITLE_BY_STATUT[statut] ?? SUBTITLE_BY_STATUT.en_attente}
         </Text>
 
         <Pressable
@@ -58,22 +85,22 @@ export default function ConfirmationScreen() {
               </Text>
               <View style={styles.reference}>
                 <Text variant="mono" tone="accent" style={styles.referenceValue}>
-                  {state.reference}
+                  {reference}
                 </Text>
                 <Icon name="copy" size={14} color={Colors.accent} />
               </View>
             </View>
 
             <Divider />
-            <SummaryRow label="Séjour" value={formatRange(arrival, departure)} />
-            <SummaryRow label="Chambre" value={room.name} />
-            <SummaryRow label="Montant payé" value={formatAmount(quote.due)} />
+            <SummaryRow label="Séjour" value={formatRange(state.search.arrival, state.search.departure)} />
+            <SummaryRow label="Chambre" value={room.type_chambre} />
+            <SummaryRow label="Montant" value={formatAmount(quote.due)} />
           </Card>
         </Pressable>
       </ScreenScroll>
 
       <View style={[styles.footer, { paddingBottom: Spacing.xl + insets.bottom }]}>
-        <Button label="Voir mon séjour" size="lg" onPress={finish} />
+        <Button label="Voir mon séjour" size="lg" onPress={() => router.replace('/(tabs)/sejour')} />
       </View>
     </Screen>
   );

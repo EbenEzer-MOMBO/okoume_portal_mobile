@@ -1,11 +1,14 @@
 import { router } from 'expo-router';
+import { useEffect, useRef } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { HotelContactCard } from '@/components/stay/hotel-contact-card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Divider } from '@/components/ui/divider';
 import { EmptyState } from '@/components/ui/empty-state';
+import { ErrorState, LoadingState } from '@/components/ui/query-state';
 import { Screen } from '@/components/ui/screen';
 import { ScreenScroll } from '@/components/ui/screen-scroll';
 import { SectionTitle } from '@/components/ui/section-title';
@@ -13,23 +16,37 @@ import { SummaryRow } from '@/components/ui/summary-row';
 import { Text } from '@/components/ui/text';
 import { HOTEL } from '@/constants/hotel';
 import { Spacing } from '@/constants/theme';
-import { formatAmount, formatDay } from '@/lib/format';
-import { getPaymentBadge, getStayCopy } from '@/lib/stay';
+import { computeQuote } from '@/lib/booking';
+import { dayFromISODate, formatAmount, formatDay } from '@/lib/format';
+import { useActiveStay } from '@/lib/queries/reservations';
+import { getStatutBadge, getStayCopy } from '@/lib/stay';
 import { useAppStore } from '@/store/app-store';
 
 export default function SejourScreen() {
-  const { state, room, quote, hasStay } = useAppStore();
-  const { arrival, departure } = state.search;
+  const { state, actions } = useAppStore();
+  const { reference, query } = useActiveStay({ poll: true });
+  const previousStatut = useRef<string | undefined>(undefined);
 
-  const copy = getStayCopy(state.stayStatus, arrival, departure);
-  const paymentBadge = getPaymentBadge(state.booking.paymentOption, state.stayStatus);
+  const reservation = query.data;
 
-  return (
-    <Screen>
-      <ScreenScroll withTabBar paddingTop={Spacing['2xl']}>
-        <Text variant="title">Mon séjour</Text>
+  useEffect(() => {
+    if (reservation && previousStatut.current && previousStatut.current !== reservation.statut) {
+      actions.addNotification({
+        reference: reservation.reference,
+        title: 'Statut de votre séjour mis à jour',
+        body: `Votre réservation est maintenant : ${getStatutBadge(reservation.statut).label.toLowerCase()}.`,
+        time: 'À l’instant',
+        unread: true,
+      });
+    }
+    previousStatut.current = reservation?.statut;
+  }, [reservation, actions]);
 
-        {!hasStay ? (
+  if (!reference) {
+    return (
+      <Screen>
+        <ScreenScroll withTabBar paddingTop={Spacing['2xl']}>
+          <Text variant="title">Mon séjour</Text>
           <EmptyState
             icon="bed"
             title="Aucun séjour en cours"
@@ -37,14 +54,41 @@ export default function SejourScreen() {
             paddingVertical={80}
             action={{ label: 'Réserver une chambre', onPress: () => router.push('/(tabs)') }}
           />
-        ) : (
+        </ScreenScroll>
+      </Screen>
+    );
+  }
+
+  const arrival = reservation ? dayFromISODate(reservation.dateArrivee) : state.search.arrival;
+  const departure = reservation ? dayFromISODate(reservation.dateDepart) : state.search.departure;
+  const copy = reservation ? getStayCopy(reservation.statut, arrival, departure) : null;
+
+  const room = state.selectedRoom;
+  const showPricing = !!room && !!state.paymentOption && room.numero === reservation?.chambre.numero;
+  const quote = showPricing ? computeQuote(room!.tarif_nuit, arrival, departure, state.paymentOption) : null;
+
+  return (
+    <Screen>
+      <ScreenScroll withTabBar paddingTop={Spacing['2xl']}>
+        <Text variant="title">Mon séjour</Text>
+
+        {query.isLoading ? <LoadingState /> : null}
+
+        {query.isError ? (
+          <ErrorState
+            message={query.error instanceof Error ? query.error.message : undefined}
+            onRetry={() => query.refetch()}
+          />
+        ) : null}
+
+        {reservation && copy ? (
           <>
             <Card tone="dark" style={styles.stay}>
               <View style={styles.stayHeader}>
                 <Text variant="overline" tone="inverseMuted">
                   {copy.statusLabel}
                 </Text>
-                <Badge label={paymentBadge.label} tone={paymentBadge.tone} />
+                <Badge label={getStatutBadge(reservation.statut).label} tone="onDark" />
               </View>
 
               <Text variant="title" tone="inverse">
@@ -62,7 +106,7 @@ export default function SejourScreen() {
                     Chambre
                   </Text>
                   <Text variant="body" tone="inverse">
-                    {room.name}
+                    {reservation.chambre.type_chambre} · {reservation.chambre.numero}
                   </Text>
                 </View>
                 <View style={styles.stayMetaItem}>
@@ -70,7 +114,7 @@ export default function SejourScreen() {
                     Réservation
                   </Text>
                   <Text variant="mono" tone="inverse">
-                    {state.reference}
+                    {reference}
                   </Text>
                 </View>
               </View>
@@ -80,14 +124,30 @@ export default function SejourScreen() {
               <SummaryRow label="Arrivée" value={`${formatDay(arrival)} · ${HOTEL.checkIn}`} />
               <Divider />
               <SummaryRow label="Départ" value={`${formatDay(departure)} · ${HOTEL.checkOut}`} />
-              <Divider />
-              <SummaryRow label="Solde restant" value={formatAmount(quote.balance)} />
+              {quote ? (
+                <>
+                  <Divider />
+                  <SummaryRow label="Solde restant" value={formatAmount(quote.balance)} />
+                </>
+              ) : null}
             </Card>
+
+            {reservation.statut === 'checkin' ? (
+              <Card style={styles.roomService}>
+                <View style={styles.roomServiceBody}>
+                  <Text variant="cardTitle">Room service</Text>
+                  <Text variant="bodySm" tone="muted">
+                    Commandez un repas directement depuis votre chambre.
+                  </Text>
+                </View>
+                <Button label="Voir le menu" fullWidth={false} onPress={() => router.push('/menu')} />
+              </Card>
+            ) : null}
 
             <SectionTitle>L&apos;hôtel</SectionTitle>
             <HotelContactCard />
           </>
-        )}
+        ) : null}
       </ScreenScroll>
     </Screen>
   );
@@ -99,4 +159,6 @@ const styles = StyleSheet.create({
   stayMeta: { flexDirection: 'row', gap: 22 },
   stayMetaItem: { gap: 3 },
   details: { gap: Spacing.md, marginTop: Spacing.md + 2 },
+  roomService: { marginTop: Spacing.md + 2, gap: Spacing.md, alignItems: 'flex-start' },
+  roomServiceBody: { gap: 3 },
 });

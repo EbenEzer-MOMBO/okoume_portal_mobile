@@ -10,15 +10,15 @@ import { Spacing } from '@/constants/theme';
 import { useAppStore } from '@/store/app-store';
 
 export default function NotificationsScreen() {
-  const { state, hasStay, unreadCount, actions } = useAppStore();
-  const notifications = hasStay ? state.notifications : [];
+  const { state, unreadCount, actions } = useAppStore();
+  const notifications = state.notifications;
 
   return (
     <Screen>
       <ScreenScroll withTabBar paddingTop={Spacing['2xl']}>
         <View style={styles.header}>
           <Text variant="title">Notifications</Text>
-          {unreadCount > 0 && hasStay ? (
+          {unreadCount > 0 ? (
             <TextButton label="Tout lire" tone="accent" onPress={actions.readAllNotifications} />
           ) : null}
         </View>

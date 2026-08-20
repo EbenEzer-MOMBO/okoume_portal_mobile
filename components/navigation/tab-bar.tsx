@@ -18,8 +18,8 @@ const TABS: Record<string, { label: string; icon: IconName }> = {
 /** Barre d'onglets du design system : icône, libellé, pastille de non-lus. */
 export function TabBar({ state, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
-  const { unreadCount, hasStay } = useAppStore();
-  const showBadge = hasStay && unreadCount > 0;
+  const { unreadCount } = useAppStore();
+  const showBadge = unreadCount > 0;
 
   return (
     <View style={[styles.bar, { height: TAB_BAR_HEIGHT + insets.bottom, paddingBottom: insets.bottom }]}>

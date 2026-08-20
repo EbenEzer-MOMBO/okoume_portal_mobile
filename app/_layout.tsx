@@ -6,21 +6,34 @@ import { IBMPlexMono_400Regular } from '@expo-google-fonts/ibm-plex-mono/400Regu
 import { Inter_400Regular } from '@expo-google-fonts/inter/400Regular';
 import { Inter_500Medium } from '@expo-google-fonts/inter/500Medium';
 import { Inter_600SemiBold } from '@expo-google-fonts/inter/600SemiBold';
+import { ClerkProvider } from '@clerk/expo';
+import { tokenCache } from '@clerk/expo/token-cache';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import 'react-native-reanimated';
 
 import { ToastProvider } from '@/components/ui/toast';
 import { Colors } from '@/constants/theme';
+import { CLERK_PUBLISHABLE_KEY } from '@/lib/env';
+import { ClerkTokenBridge } from '@/lib/auth/token-bridge';
 import { AppStoreProvider } from '@/store/app-store';
+import { RoomServiceCartProvider } from '@/store/room-service-cart';
 
 SplashScreen.preventAutoHideAsync();
 
+/** Un seul client React Query pour toute l'app, créé une fois. */
+function useAppQueryClient() {
+  const [client] = useState(() => new QueryClient({ defaultOptions: { queries: { retry: 1 } } }));
+  return client;
+}
+
 export default function RootLayout() {
+  const queryClient = useAppQueryClient();
   const [fontsLoaded, fontError] = useFonts({
     Fraunces_600SemiBold,
     Fraunces_600SemiBold_Italic,
@@ -42,23 +55,30 @@ export default function RootLayout() {
   }
 
   return (
-    <SafeAreaProvider>
-      <AppStoreProvider>
-        <ToastProvider>
-          <Stack
-            screenOptions={{
-              headerShown: false,
-              contentStyle: { backgroundColor: Colors.background },
-              animation: 'slide_from_right',
-            }}>
-            <Stack.Screen name="index" options={{ animation: 'fade' }} />
-            <Stack.Screen name="login" options={{ animation: 'fade' }} />
-            <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
-            <Stack.Screen name="confirmation" options={{ animation: 'fade', gestureEnabled: false }} />
-          </Stack>
-          <StatusBar style="dark" />
-        </ToastProvider>
-      </AppStoreProvider>
-    </SafeAreaProvider>
+    <ClerkProvider publishableKey={CLERK_PUBLISHABLE_KEY} tokenCache={tokenCache}>
+      <ClerkTokenBridge />
+      <QueryClientProvider client={queryClient}>
+        <SafeAreaProvider>
+          <AppStoreProvider>
+            <RoomServiceCartProvider>
+              <ToastProvider>
+                <Stack
+                  screenOptions={{
+                    headerShown: false,
+                    contentStyle: { backgroundColor: Colors.background },
+                    animation: 'slide_from_right',
+                  }}>
+                  <Stack.Screen name="index" options={{ animation: 'fade' }} />
+                  <Stack.Screen name="login" options={{ animation: 'fade' }} />
+                  <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
+                  <Stack.Screen name="confirmation" options={{ animation: 'fade', gestureEnabled: false }} />
+                </Stack>
+                <StatusBar style="dark" />
+              </ToastProvider>
+            </RoomServiceCartProvider>
+          </AppStoreProvider>
+        </SafeAreaProvider>
+      </QueryClientProvider>
+    </ClerkProvider>
   );
 }

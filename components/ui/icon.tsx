@@ -32,6 +32,10 @@ const ICONS = {
   home: { family: 'feather', name: 'home' },
   profile: { family: 'feather', name: 'user' },
   bed: { family: 'material', name: 'bed-outline' },
+  plus: { family: 'feather', name: 'plus' },
+  minus: { family: 'feather', name: 'minus' },
+  cart: { family: 'feather', name: 'shopping-bag' },
+  trash: { family: 'feather', name: 'trash-2' },
 } as const satisfies Record<string, { family: 'feather'; name: FeatherName } | { family: 'material'; name: MaterialName }>;
 
 export type IconName = keyof typeof ICONS;

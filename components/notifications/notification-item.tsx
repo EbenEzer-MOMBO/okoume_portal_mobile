@@ -1,23 +1,18 @@
 import { Pressable, StyleSheet, View } from 'react-native';
 
-import { Icon, type IconName } from '@/components/ui/icon';
+import { Icon } from '@/components/ui/icon';
 import { Text } from '@/components/ui/text';
-import { AppNotification, NotificationKind } from '@/store/app-store';
+import { LocalNotification } from '@/store/app-store';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 
-const KIND_ICONS: Record<NotificationKind, IconName> = {
-  confirm: 'check',
-  clock: 'clock',
-  promo: 'promo',
-};
-
 export type NotificationItemProps = {
-  notification: AppNotification;
+  notification: LocalNotification;
   onPress: () => void;
 };
 
+/** Ligne de notification — dérivée localement des transitions de statut de réservation. */
 export function NotificationItem({ notification, onPress }: NotificationItemProps) {
-  const { unread, title, body, time, kind } = notification;
+  const { unread, title, body, time } = notification;
 
   return (
     <Pressable
@@ -29,7 +24,7 @@ export function NotificationItem({ notification, onPress }: NotificationItemProp
         { backgroundColor: unread ? Colors.unreadBg : Colors.surface, opacity: pressed ? 0.9 : 1 },
       ]}>
       <View style={[styles.icon, { backgroundColor: unread ? Colors.unreadIconBg : Colors.readIconBg }]}>
-        <Icon name={KIND_ICONS[kind]} size={16} color={Colors.accent} />
+        <Icon name="clock" size={16} color={Colors.accent} />
       </View>
 
       <View style={styles.body}>

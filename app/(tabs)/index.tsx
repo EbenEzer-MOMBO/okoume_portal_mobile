@@ -16,6 +16,7 @@ import { StayBanner } from '@/components/stay/stay-banner';
 import { GUEST_OPTIONS, HOTEL, ROOM_TYPES, RoomType } from '@/constants/hotel';
 import { Spacing } from '@/constants/theme';
 import { BOOKING_MONTH_LABEL, formatDay } from '@/lib/format';
+import { useActiveStay } from '@/lib/queries/reservations';
 import { useAppStore } from '@/store/app-store';
 
 /** Nombre de nuits appliqué par défaut quand l'arrivée dépasse le départ. */
@@ -26,8 +27,10 @@ type CalendarTarget = 'arrival' | 'departure';
 const ROOM_TYPE_OPTIONS = ROOM_TYPES.map((type) => ({ value: type, label: type }));
 
 export default function AccueilScreen() {
-  const { state, room, hasStay, actions } = useAppStore();
+  const { state, actions } = useAppStore();
   const { arrival, departure, roomType, guests } = state.search;
+  const { query: stayQuery } = useActiveStay();
+  const stay = stayQuery.data;
 
   const [calendarTarget, setCalendarTarget] = useState<CalendarTarget | null>(null);
   const [dateError, setDateError] = useState('');
@@ -48,14 +51,14 @@ export default function AccueilScreen() {
   return (
     <Screen>
       <ScreenScroll withTabBar paddingTop={Spacing['2xl']}>
-        {hasStay ? (
+        {stay ? (
           <StayBanner
-            label={`${room.name} · ${formatDay(arrival)}`}
+            label={`${stay.chambre.type_chambre} · ${stay.dateArrivee}`}
             onPress={() => router.push('/(tabs)/sejour')}
           />
         ) : null}
 
-        <Text variant="title" style={[styles.title, hasStay && styles.titleWithBanner]}>
+        <Text variant="title" style={[styles.title, stay && styles.titleWithBanner]}>
           Trouvez votre chambre
         </Text>
         <Text variant="body" tone="muted" style={styles.subtitle}>

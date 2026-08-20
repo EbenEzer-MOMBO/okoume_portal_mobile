@@ -1,14 +1,6 @@
-import { router, useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
-import {
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  View,
-  useWindowDimensions,
-  type NativeScrollEvent,
-  type NativeSyntheticEvent,
-} from 'react-native';
+import { Image } from 'expo-image';
+import { router } from 'expo-router';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PriceBreakdown } from '@/components/booking/price-breakdown';
@@ -19,31 +11,37 @@ import { PhotoPlaceholder } from '@/components/ui/photo-placeholder';
 import { Screen } from '@/components/ui/screen';
 import { SectionTitle } from '@/components/ui/section-title';
 import { Text } from '@/components/ui/text';
-import { ROOMS } from '@/constants/hotel';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 import { computeQuote } from '@/lib/booking';
 import { useAppStore } from '@/store/app-store';
 
-/** Nombre d'emplacements photo du carrousel. */
-const PHOTO_COUNT = 3;
 const PHOTO_HEIGHT = 300;
 
 export default function ChambreScreen() {
-  const { roomId } = useLocalSearchParams<{ roomId: string }>();
-  const { state, actions } = useAppStore();
-  const { width } = useWindowDimensions();
+  const { state } = useAppStore();
   const insets = useSafeAreaInsets();
-  const [photoIndex, setPhotoIndex] = useState(0);
 
-  const room = ROOMS.find((item) => item.id === roomId) ?? ROOMS[0];
-  const quote = computeQuote(room, state.search.arrival, state.search.departure, state.booking.paymentOption);
+  const room = state.selectedRoom;
 
-  const onScrollEnd = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    setPhotoIndex(Math.round(event.nativeEvent.contentOffset.x / width));
-  };
+  const goBack = () => (router.canGoBack() ? router.back() : router.replace('/resultats'));
+
+  if (!room) {
+    return (
+      <Screen edges={['top']}>
+        <View style={styles.missing}>
+          <Text variant="heading">Chambre introuvable</Text>
+          <Text variant="body" tone="muted" style={styles.missingText}>
+            Cette fiche n&apos;est plus disponible. Relancez une recherche.
+          </Text>
+          <Button label="Retour aux résultats" fullWidth={false} onPress={goBack} />
+        </View>
+      </Screen>
+    );
+  }
+
+  const quote = computeQuote(room.tarif_nuit, state.search.arrival, state.search.departure, null);
 
   const book = () => {
-    actions.selectRoom(room.id);
     router.push('/recapitulatif');
   };
 
@@ -51,60 +49,51 @@ export default function ChambreScreen() {
     <Screen edges={[]}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
         <View style={styles.carousel}>
-          <ScrollView
-            horizontal
-            pagingEnabled
-            showsHorizontalScrollIndicator={false}
-            onMomentumScrollEnd={onScrollEnd}>
-            {Array.from({ length: PHOTO_COUNT }).map((_, index) => (
-              <PhotoPlaceholder key={index} style={{ width, height: PHOTO_HEIGHT }}>
-                <Text variant="mono" tone="accent" style={styles.slot}>
-                  photo {index + 1}/{PHOTO_COUNT} — {room.name.toLowerCase()}
-                </Text>
-              </PhotoPlaceholder>
-            ))}
-          </ScrollView>
+          {room.photo_url ? (
+            <Image source={{ uri: room.photo_url }} style={styles.photo} contentFit="cover" />
+          ) : (
+            <PhotoPlaceholder style={styles.photo}>
+              <Text variant="mono" tone="accent" style={styles.slot}>
+                chambre {room.numero}
+              </Text>
+            </PhotoPlaceholder>
+          )}
 
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Retour"
-            onPress={() => (router.canGoBack() ? router.back() : router.replace('/resultats'))}
+            onPress={goBack}
             style={[styles.back, { top: insets.top + Spacing.sm }]}>
             <Icon name="back" size={18} />
           </Pressable>
-
-          <View style={styles.dots}>
-            {Array.from({ length: PHOTO_COUNT }).map((_, index) => (
-              <View key={index} style={[styles.dot, index === photoIndex && styles.dotActive]} />
-            ))}
-          </View>
         </View>
 
         <View style={styles.body}>
           <Text variant="title" style={styles.name}>
-            {room.name}
+            {room.type_chambre}
           </Text>
           <Text variant="bodySm" tone="muted" style={styles.meta}>
-            {room.capacity} personnes · {room.size} · {room.view}
-          </Text>
-          <Text variant="body" tone="body" style={styles.description}>
-            {room.description}
+            Chambre {room.numero} · {room.capacite} personnes
           </Text>
 
-          <SectionTitle>Équipements</SectionTitle>
-          <View style={styles.amenities}>
-            {room.amenities.map((amenity) => (
-              <View key={amenity} style={styles.amenity}>
-                <Icon name="check" size={14} color={Colors.accent} />
-                <Text variant="bodySm" tone="body" style={styles.amenityLabel}>
-                  {amenity}
-                </Text>
+          {room.amenites.length > 0 ? (
+            <>
+              <SectionTitle>Équipements</SectionTitle>
+              <View style={styles.amenities}>
+                {room.amenites.map((amenity) => (
+                  <View key={amenity} style={styles.amenity}>
+                    <Icon name="check" size={14} color={Colors.accent} />
+                    <Text variant="bodySm" tone="body" style={styles.amenityLabel}>
+                      {amenity}
+                    </Text>
+                  </View>
+                ))}
               </View>
-            ))}
-          </View>
+            </>
+          ) : null}
 
           <Card style={styles.price}>
-            <PriceBreakdown quote={quote} nightlyPrice={room.price} />
+            <PriceBreakdown quote={quote} nightlyPrice={room.tarif_nuit} />
           </Card>
         </View>
       </ScrollView>
@@ -119,6 +108,7 @@ export default function ChambreScreen() {
 const styles = StyleSheet.create({
   content: { paddingBottom: Spacing['3xl'] },
   carousel: { height: PHOTO_HEIGHT },
+  photo: { width: '100%', height: '100%' },
   slot: { fontSize: 11 },
   back: {
     position: 'absolute',
@@ -130,13 +120,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  dots: { position: 'absolute', bottom: Spacing.lg, left: 0, right: 0, flexDirection: 'row', justifyContent: 'center', gap: Spacing.sm - 2 },
-  dot: { width: 7, height: 7, borderRadius: Radius.pill, backgroundColor: Colors.dotInactive },
-  dotActive: { backgroundColor: Colors.ink },
   body: { paddingHorizontal: Spacing.xl, paddingTop: 22 },
   name: { fontSize: 29 },
   meta: { marginTop: Spacing.xs + 2 },
-  description: { marginTop: Spacing.lg, lineHeight: 23 },
   amenities: { flexDirection: 'row', flexWrap: 'wrap', rowGap: Spacing.sm + 2, columnGap: Spacing.md + 2 },
   amenity: { width: '46%', flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   amenityLabel: { flexShrink: 1 },
@@ -148,4 +134,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.xl,
     paddingTop: Spacing.md + 2,
   },
+  missing: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: Spacing.md, paddingHorizontal: Spacing.xl },
+  missingText: { textAlign: 'center' },
 });

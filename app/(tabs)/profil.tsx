@@ -1,3 +1,4 @@
+import { useClerk, useUser } from '@clerk/expo';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
@@ -12,12 +13,8 @@ import { SummaryRow } from '@/components/ui/summary-row';
 import { Text } from '@/components/ui/text';
 import { TextButton } from '@/components/ui/text-button';
 import { Toggle } from '@/components/ui/toggle';
-import { useToast } from '@/components/ui/toast';
-import { DEMO_USER } from '@/constants/hotel';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 import { useAppStore, type NotificationPrefs } from '@/store/app-store';
-
-type DialogKind = 'logout' | 'password';
 
 const PREFS: { key: keyof NotificationPrefs; label: string }[] = [
   { key: 'push', label: 'Notifications push' },
@@ -25,41 +22,33 @@ const PREFS: { key: keyof NotificationPrefs; label: string }[] = [
   { key: 'promos', label: 'Offres et promotions' },
 ];
 
-const DIALOGS: Record<
-  DialogKind,
-  { title: string; description: string; confirmLabel: string; tone: 'default' | 'destructive' }
-> = {
-  logout: {
-    title: 'Se déconnecter ?',
-    description: 'Vous devrez saisir à nouveau vos identifiants pour accéder à vos réservations.',
-    confirmLabel: 'Se déconnecter',
-    tone: 'destructive',
-  },
-  password: {
-    title: 'Modifier le mot de passe',
-    description: `Un lien de modification sera envoyé à ${DEMO_USER.email}.`,
-    confirmLabel: 'Envoyer le lien',
-    tone: 'default',
-  },
-};
+function initialsOf(name: string | null | undefined, email: string | undefined): string {
+  if (name) {
+    const parts = name.trim().split(/\s+/);
+    return parts
+      .slice(0, 2)
+      .map((p) => p[0]?.toUpperCase())
+      .join('');
+  }
+  return email?.[0]?.toUpperCase() ?? '?';
+}
 
 export default function ProfilScreen() {
   const { state, actions } = useAppStore();
-  const showToast = useToast();
-  const [dialog, setDialog] = useState<DialogKind | null>(null);
+  const { user } = useUser();
+  const { signOut } = useClerk();
+  const [logoutOpen, setLogoutOpen] = useState(false);
 
-  const confirm = () => {
-    if (dialog === 'logout') {
-      setDialog(null);
-      actions.signOut();
-      router.replace('/login');
-      return;
-    }
-    setDialog(null);
-    showToast('Lien de modification envoyé');
+  const fullName = [user?.firstName, user?.lastName].filter(Boolean).join(' ') || null;
+  const email = user?.primaryEmailAddress?.emailAddress;
+  const phone = user?.primaryPhoneNumber?.phoneNumber ?? (user?.unsafeMetadata?.phone as string | undefined);
+  const country = user?.unsafeMetadata?.country as string | undefined;
+
+  const confirmLogout = async () => {
+    setLogoutOpen(false);
+    await signOut();
+    router.replace('/login');
   };
-
-  const dialogCopy = dialog ? DIALOGS[dialog] : null;
 
   return (
     <Screen tone="alt">
@@ -69,31 +58,24 @@ export default function ProfilScreen() {
         <View style={styles.identity}>
           <View style={styles.avatar}>
             <Text variant="heading" tone="inverse">
-              {DEMO_USER.initials}
+              {initialsOf(fullName, email)}
             </Text>
           </View>
           <View style={styles.identityBody}>
-            <Text variant="cardTitle">
-              {DEMO_USER.firstName} {DEMO_USER.lastName}
-            </Text>
-            <Text variant="bodySm" tone="muted">
-              {DEMO_USER.email}
-            </Text>
+            <Text variant="cardTitle">{fullName ?? email ?? 'Client Okoumé'}</Text>
+            {email ? (
+              <Text variant="bodySm" tone="muted">
+                {email}
+              </Text>
+            ) : null}
           </View>
         </View>
 
         <SectionTitle spacingTop={26}>Coordonnées</SectionTitle>
         <Card padded={false}>
-          <SummaryRow label="Téléphone" value={DEMO_USER.phone} style={styles.row} />
+          <SummaryRow label="Téléphone" value={phone ?? 'Non renseigné'} style={styles.row} />
           <Divider />
-          <SummaryRow label="Pays" value={DEMO_USER.country} style={styles.row} />
-          <Divider />
-          <SummaryRow
-            label="Mot de passe"
-            actionLabel="Modifier"
-            onPress={() => setDialog('password')}
-            style={styles.row}
-          />
+          <SummaryRow label="Pays" value={country ?? 'Non renseigné'} style={styles.row} />
         </Card>
 
         <SectionTitle spacingTop={26}>Préférences de notification</SectionTitle>
@@ -116,22 +98,20 @@ export default function ProfilScreen() {
         <TextButton
           label="Se déconnecter"
           tone="destructive"
-          onPress={() => setDialog('logout')}
+          onPress={() => setLogoutOpen(true)}
           style={styles.logout}
         />
       </ScreenScroll>
 
-      {dialogCopy ? (
-        <Dialog
-          visible
-          title={dialogCopy.title}
-          description={dialogCopy.description}
-          confirmLabel={dialogCopy.confirmLabel}
-          tone={dialogCopy.tone}
-          onConfirm={confirm}
-          onCancel={() => setDialog(null)}
-        />
-      ) : null}
+      <Dialog
+        visible={logoutOpen}
+        title="Se déconnecter ?"
+        description="Vous devrez saisir à nouveau vos identifiants pour accéder à vos réservations."
+        confirmLabel="Se déconnecter"
+        tone="destructive"
+        onConfirm={confirmLogout}
+        onCancel={() => setLogoutOpen(false)}
+      />
     </Screen>
   );
 }

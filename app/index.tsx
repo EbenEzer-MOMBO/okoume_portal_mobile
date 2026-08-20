@@ -1,3 +1,4 @@
+import { useAuth } from '@clerk/expo';
 import { router } from 'expo-router';
 import { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
@@ -5,21 +6,22 @@ import { StyleSheet, View } from 'react-native';
 import { Screen } from '@/components/ui/screen';
 import { Text } from '@/components/ui/text';
 import { Colors, Radius, Spacing } from '@/constants/theme';
-import { useAppStore } from '@/store/app-store';
 
 /** Durée d'affichage du splash avant redirection (ms). */
 const SPLASH_DURATION = 1900;
 
 export default function SplashRoute() {
-  const { state } = useAppStore();
+  const { isLoaded, isSignedIn } = useAuth();
 
   useEffect(() => {
+    if (!isLoaded) return;
+
     const timeout = setTimeout(() => {
-      router.replace(state.authenticated ? '/(tabs)' : '/login');
+      router.replace(isSignedIn ? '/(tabs)' : '/login');
     }, SPLASH_DURATION);
 
     return () => clearTimeout(timeout);
-  }, [state.authenticated]);
+  }, [isLoaded, isSignedIn]);
 
   return (
     <Screen edges={['top', 'bottom']}>

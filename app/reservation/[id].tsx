@@ -5,63 +5,69 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Divider } from '@/components/ui/divider';
+import { ErrorState, LoadingState } from '@/components/ui/query-state';
 import { Screen } from '@/components/ui/screen';
 import { ScreenHeader } from '@/components/ui/screen-header';
 import { ScreenScroll } from '@/components/ui/screen-scroll';
 import { SummaryRow } from '@/components/ui/summary-row';
 import { Text } from '@/components/ui/text';
 import { useToast } from '@/components/ui/toast';
-import { PAST_RESERVATIONS } from '@/constants/hotel';
 import { Spacing } from '@/constants/theme';
-import { formatAmount, pluralize } from '@/lib/format';
+import { dayFromISODate, formatDay } from '@/lib/format';
+import { useReservation } from '@/lib/queries/reservations';
+import { getStatutBadge } from '@/lib/stay';
 
 export default function ReservationPasseeScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id: reference } = useLocalSearchParams<{ id: string }>();
   const showToast = useToast();
-
-  const reservation = PAST_RESERVATIONS.find((item) => item.id === id) ?? PAST_RESERVATIONS[0];
-  const subtotal = reservation.nights * reservation.nightlyPrice;
-  const total = subtotal + reservation.tax;
+  const query = useReservation(reference ?? null);
+  const reservation = query.data;
 
   return (
     <Screen tone="alt">
       <ScreenHeader title="Séjour passé" />
 
       <ScreenScroll paddingTop={22}>
-        <Text variant="title" style={styles.title}>
-          {reservation.roomName}
-        </Text>
-        <Text variant="bodySm" tone="muted" style={styles.meta}>
-          {reservation.meta}
-        </Text>
-        <View style={styles.badge}>
-          <Badge label="Terminée" tone="muted" />
-        </View>
-
-        <Card style={styles.details}>
-          <SummaryRow label="N° de réservation" value={reservation.reference} />
-          <Divider />
-          <SummaryRow
-            label={`${pluralize(reservation.nights, 'nuit')} × ${formatAmount(reservation.nightlyPrice)}`}
-            value={formatAmount(subtotal)}
+        {query.isLoading ? <LoadingState /> : null}
+        {query.isError ? (
+          <ErrorState
+            message={query.error instanceof Error ? query.error.message : undefined}
+            onRetry={() => query.refetch()}
           />
-          <SummaryRow label="Taxe de séjour" value={formatAmount(reservation.tax)} />
-          <Divider />
-          <SummaryRow label="Total payé" value={formatAmount(total)} emphasis="total" />
-          <SummaryRow label="Mode de paiement" value={reservation.paymentLabel} />
-        </Card>
+        ) : null}
 
-        <Button
-          label="Télécharger la facture"
-          variant="outline"
-          icon="download"
-          style={styles.invoice}
-          onPress={() => showToast(`Facture ${reservation.reference} téléchargée`)}
-        />
+        {reservation ? (
+          <>
+            <Text variant="title" style={styles.title}>
+              {reservation.chambre.type_chambre}
+            </Text>
+            <Text variant="bodySm" tone="muted" style={styles.meta}>
+              {formatDay(dayFromISODate(reservation.dateArrivee))} →{' '}
+              {formatDay(dayFromISODate(reservation.dateDepart))} · Chambre {reservation.chambre.numero}
+            </Text>
+            <View style={styles.badge}>
+              <Badge {...getStatutBadge(reservation.statut)} />
+            </View>
 
-        <Text variant="caption" tone="subtle" style={styles.notice}>
-          Cette réservation est terminée et ne peut plus être modifiée.
-        </Text>
+            <Card style={styles.details}>
+              <SummaryRow label="N° de réservation" value={reservation.reference} />
+              <Divider />
+              <SummaryRow label="Client" value={reservation.clientNom} />
+            </Card>
+
+            <Button
+              label="Télécharger la facture"
+              variant="outline"
+              icon="download"
+              style={styles.invoice}
+              onPress={() => showToast('Facture bientôt disponible')}
+            />
+
+            <Text variant="caption" tone="subtle" style={styles.notice}>
+              Cette réservation est en lecture seule et ne peut plus être modifiée.
+            </Text>
+          </>
+        ) : null}
       </ScreenScroll>
     </Screen>
   );

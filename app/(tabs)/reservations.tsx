@@ -4,15 +4,15 @@ import { StyleSheet, View } from 'react-native';
 
 import { ReservationCard } from '@/components/booking/reservation-card';
 import { EmptyState } from '@/components/ui/empty-state';
+import { LoadingState } from '@/components/ui/query-state';
 import { Screen } from '@/components/ui/screen';
 import { ScreenScroll } from '@/components/ui/screen-scroll';
 import { SegmentedTabs } from '@/components/ui/segmented-tabs';
 import { Text } from '@/components/ui/text';
-import { PAST_RESERVATIONS } from '@/constants/hotel';
 import { Spacing } from '@/constants/theme';
-import { formatDay } from '@/lib/format';
-import { getReservationBadge } from '@/lib/stay';
-import { useAppStore } from '@/store/app-store';
+import { dayFromISODate, formatDay } from '@/lib/format';
+import { useTrackedReservations } from '@/lib/queries/reservations';
+import { getStatutBadge } from '@/lib/stay';
 
 type HistoryTab = 'avenir' | 'passees';
 
@@ -33,29 +33,14 @@ const EMPTY_COPY: Record<HistoryTab, { title: string; description: string }> = {
 };
 
 export default function ReservationsScreen() {
-  const { state, room, hasStay } = useAppStore();
   const [tab, setTab] = useState<HistoryTab>('avenir');
+  const queries = useTrackedReservations();
 
-  const upcoming = hasStay
-    ? [
-        {
-          id: state.reference,
-          roomName: room.name,
-          dates: `${formatDay(state.search.arrival)} → ${formatDay(state.search.departure)}`,
-          status: getReservationBadge(state.stayStatus),
-          onPress: () => router.push('/(tabs)/sejour'),
-        },
-      ]
-    : [];
+  const isLoading = queries.length > 0 && queries.some((q) => q.isLoading);
+  const reservations = queries.map((q) => q.data).filter((r) => !!r);
 
-  const past = PAST_RESERVATIONS.map((reservation) => ({
-    id: reservation.id,
-    roomName: reservation.roomName,
-    dates: reservation.dates,
-    status: { label: 'Terminée' as const, tone: 'muted' as const },
-    onPress: () => router.push(`/reservation/${reservation.id}`),
-  }));
-
+  const upcoming = reservations.filter((r) => r.statut !== 'checkout' && r.statut !== 'annulee');
+  const past = reservations.filter((r) => r.statut === 'checkout' || r.statut === 'annulee');
   const items = tab === 'avenir' ? upcoming : past;
 
   return (
@@ -67,21 +52,25 @@ export default function ReservationsScreen() {
           <SegmentedTabs value={tab} options={TABS} onChange={setTab} />
         </View>
 
-        {items.length === 0 ? (
+        {isLoading ? <LoadingState /> : null}
+
+        {!isLoading && items.length === 0 ? (
           <EmptyState icon="clock" title={EMPTY_COPY[tab].title} description={EMPTY_COPY[tab].description} />
-        ) : (
+        ) : null}
+
+        {!isLoading && items.length > 0 ? (
           <View style={styles.list}>
-            {items.map((item) => (
+            {items.map((reservation) => (
               <ReservationCard
-                key={item.id}
-                roomName={item.roomName}
-                dates={item.dates}
-                status={item.status}
-                onPress={item.onPress}
+                key={reservation.reference}
+                roomName={reservation.chambre.type_chambre}
+                dates={`${formatDay(dayFromISODate(reservation.dateArrivee))} → ${formatDay(dayFromISODate(reservation.dateDepart))}`}
+                status={getStatutBadge(reservation.statut)}
+                onPress={() => router.push(`/reservation/${reservation.reference}`)}
               />
             ))}
           </View>
-        )}
+        ) : null}
       </ScreenScroll>
     </Screen>
   );
