@@ -1,98 +1,136 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import { router } from 'expo-router';
+import { useState } from 'react';
+import { StyleSheet, View } from 'react-native';
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+import { Button } from '@/components/ui/button';
+import { BottomSheet } from '@/components/ui/bottom-sheet';
+import { Calendar } from '@/components/ui/calendar';
+import { Card } from '@/components/ui/card';
+import { ControlBox } from '@/components/ui/control-box';
+import { Field } from '@/components/ui/field';
+import { Screen } from '@/components/ui/screen';
+import { ScreenScroll } from '@/components/ui/screen-scroll';
+import { SelectField } from '@/components/ui/select-field';
+import { Text } from '@/components/ui/text';
+import { StayBanner } from '@/components/stay/stay-banner';
+import { GUEST_OPTIONS, HOTEL, ROOM_TYPES, RoomType } from '@/constants/hotel';
+import { Spacing } from '@/constants/theme';
+import { BOOKING_MONTH_LABEL, formatDay } from '@/lib/format';
+import { useAppStore } from '@/store/app-store';
 
-export default function HomeScreen() {
+/** Nombre de nuits appliqué par défaut quand l'arrivée dépasse le départ. */
+const DEFAULT_STAY_LENGTH = 3;
+
+type CalendarTarget = 'arrival' | 'departure';
+
+const ROOM_TYPE_OPTIONS = ROOM_TYPES.map((type) => ({ value: type, label: type }));
+
+export default function AccueilScreen() {
+  const { state, room, hasStay, actions } = useAppStore();
+  const { arrival, departure, roomType, guests } = state.search;
+
+  const [calendarTarget, setCalendarTarget] = useState<CalendarTarget | null>(null);
+  const [dateError, setDateError] = useState('');
+
+  const selectDay = (day: number) => {
+    if (calendarTarget === 'arrival') {
+      actions.setDates(day, day >= departure ? day + DEFAULT_STAY_LENGTH : departure);
+      setDateError('');
+    } else if (day <= arrival) {
+      setDateError("La date de départ doit suivre la date d'arrivée.");
+    } else {
+      actions.setDates(arrival, day);
+      setDateError('');
+    }
+    setCalendarTarget(null);
+  };
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+    <Screen>
+      <ScreenScroll withTabBar paddingTop={Spacing['2xl']}>
+        {hasStay ? (
+          <StayBanner
+            label={`${room.name} · ${formatDay(arrival)}`}
+            onPress={() => router.push('/(tabs)/sejour')}
+          />
+        ) : null}
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+        <Text variant="title" style={[styles.title, hasStay && styles.titleWithBanner]}>
+          Trouvez votre chambre
+        </Text>
+        <Text variant="body" tone="muted" style={styles.subtitle}>
+          {HOTEL.name} · {HOTEL.city}
+        </Text>
+
+        <Card style={styles.form} elevated>
+          <View style={styles.dates}>
+            <Field label="Arrivée" icon="calendar" style={styles.dateField}>
+              <ControlBox
+                value={formatDay(arrival)}
+                accessibilityLabel="Choisir la date d'arrivée"
+                onPress={() => setCalendarTarget('arrival')}
+              />
+            </Field>
+            <Field label="Départ" icon="calendar" style={styles.dateField}>
+              <ControlBox
+                value={formatDay(departure)}
+                accessibilityLabel="Choisir la date de départ"
+                onPress={() => setCalendarTarget('departure')}
+              />
+            </Field>
+          </View>
+
+          {dateError ? (
+            <Text variant="caption" tone="destructive">
+              {dateError}
+            </Text>
+          ) : null}
+
+          <SelectField
+            label="Type de chambre"
+            icon="bed"
+            value={roomType}
+            options={ROOM_TYPE_OPTIONS}
+            onChange={(value) => actions.setRoomType(value as RoomType)}
+          />
+
+          <SelectField
+            label="Voyageurs"
+            icon="guests"
+            value={guests}
+            options={GUEST_OPTIONS}
+            onChange={actions.setGuests}
+          />
+
+          <Button label="Rechercher" icon="search" onPress={() => router.push('/resultats')} />
+        </Card>
+
+        <Text variant="caption" tone="subtle" style={styles.notice}>
+          {HOTEL.cancellationNotice}
+        </Text>
+      </ScreenScroll>
+
+      <BottomSheet
+        visible={calendarTarget !== null}
+        onClose={() => setCalendarTarget(null)}
+        title={calendarTarget === 'departure' ? 'Date de départ' : "Date d'arrivée"}
+        titleAccessory={
+          <Text variant="bodySm" tone="muted">
+            {BOOKING_MONTH_LABEL}
+          </Text>
+        }>
+        <Calendar arrival={arrival} departure={departure} onSelectDay={selectDay} />
+      </BottomSheet>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
-  },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
-  },
+  title: { fontSize: 32, lineHeight: 37 },
+  titleWithBanner: { marginTop: 22 },
+  subtitle: { marginTop: Spacing.sm },
+  form: { marginTop: Spacing.xl, gap: Spacing.md + 2, padding: Spacing.lg + 2 },
+  dates: { flexDirection: 'row', gap: Spacing.sm + 2 },
+  dateField: { flex: 1 },
+  notice: { marginTop: Spacing.lg },
 });

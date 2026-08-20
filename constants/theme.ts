@@ -1,53 +1,105 @@
 /**
- * Below are the colors that are used in the app. The colors are defined in the light and dark mode.
- * There are many other ways to style your app. For example, [Nativewind](https://www.nativewind.dev/), [Tamagui](https://tamagui.dev/), [unistyles](https://reactnativeunistyles.vercel.app), etc.
+ * Design system Okoumé — source unique de vérité pour les couleurs, la
+ * typographie, les espacements et les rayons utilisés dans toute l'app.
+ * Toute valeur littérale (hex, taille de police) doit être déclarée ici.
  */
 
-import { Platform } from 'react-native';
-
-const tintColorLight = '#0a7ea4';
-const tintColorDark = '#fff';
-
 export const Colors = {
-  light: {
-    text: '#11181C',
-    background: '#fff',
-    tint: tintColorLight,
-    icon: '#687076',
-    tabIconDefault: '#687076',
-    tabIconSelected: tintColorLight,
-  },
-  dark: {
-    text: '#ECEDEE',
-    background: '#151718',
-    tint: tintColorDark,
-    icon: '#9BA1A6',
-    tabIconDefault: '#9BA1A6',
-    tabIconSelected: tintColorDark,
-  },
-};
+  /** Noir bois — surfaces primaires, texte principal */
+  ink: '#1C1B19',
+  /** Texte sur fond ink */
+  onInk: '#FAF9F6',
+  /** Texte secondaire sur fond ink */
+  onInkMuted: '#C9BCA9',
+  /** Brun okoumé — accent */
+  accent: '#8B7355',
 
-export const Fonts = Platform.select({
-  ios: {
-    /** iOS `UIFontDescriptorSystemDesignDefault` */
-    sans: 'system-ui',
-    /** iOS `UIFontDescriptorSystemDesignSerif` */
-    serif: 'ui-serif',
-    /** iOS `UIFontDescriptorSystemDesignRounded` */
-    rounded: 'ui-rounded',
-    /** iOS `UIFontDescriptorSystemDesignMonospaced` */
-    mono: 'ui-monospace',
+  /** Fond principal (crème) */
+  background: '#F7F4EF',
+  /** Fond secondaire (crème clair) */
+  backgroundAlt: '#FAF9F6',
+  /** Fond neutre appuyé (pistes de segmented control, canvas) */
+  backgroundMuted: '#EDE9E2',
+  /** Cartes */
+  surface: '#FFFFFF',
+
+  border: '#E7E5E4',
+  borderStrong: '#D6D3D1',
+
+  text: '#1C1B19',
+  textBody: '#3F3B37',
+  textNeutral: '#57534E',
+  textMuted: '#78706A',
+  textSubtle: '#A8A29A',
+  textDisabled: '#CFC9C0',
+
+  destructive: '#EF4444',
+
+  /** Badges neutres (statut « Terminée ») */
+  badgeMutedBg: '#F4F4F5',
+  badgeMutedFg: '#52504C',
+
+  /** Notifications non lues */
+  unreadBg: '#FBF7F1',
+  unreadIconBg: '#F0E7DA',
+  readIconBg: '#F4F4F5',
+
+  /** Emplacements photo (rayures diagonales) */
+  photoBase: '#EFEAE2',
+  photoStripe: '#E6E0D5',
+
+  /** Point inactif du carrousel photo */
+  dotInactive: 'rgba(28,27,25,0.28)',
+
+  overlay: 'rgba(28,27,25,0.35)',
+  overlayStrong: 'rgba(28,27,25,0.4)',
+  onInkDivider: 'rgba(250,249,246,0.14)',
+} as const;
+
+export const FontFamily = {
+  serif: 'Fraunces_600SemiBold',
+  serifBold: 'Fraunces_700Bold',
+  serifItalic: 'Fraunces_600SemiBold_Italic',
+  sans: 'Inter_400Regular',
+  sansMedium: 'Inter_500Medium',
+  sansSemiBold: 'Inter_600SemiBold',
+  mono: 'IBMPlexMono_400Regular',
+} as const;
+
+export const Spacing = {
+  xs: 4,
+  sm: 8,
+  md: 12,
+  lg: 16,
+  xl: 20,
+  '2xl': 24,
+  '3xl': 32,
+} as const;
+
+export const Radius = {
+  sm: 6,
+  md: 8,
+  lg: 12,
+  sheet: 16,
+  pill: 999,
+} as const;
+
+/** Hauteurs de contrôles interactifs (cible tactile ≥ 44 px). */
+export const ControlHeight = {
+  input: 44,
+  button: 48,
+  buttonLarge: 50,
+} as const;
+
+export const Shadow = {
+  card: {
+    shadowColor: Colors.ink,
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 1,
   },
-  default: {
-    sans: 'normal',
-    serif: 'serif',
-    rounded: 'normal',
-    mono: 'monospace',
-  },
-  web: {
-    sans: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
-    serif: "Georgia, 'Times New Roman', serif",
-    rounded: "'SF Pro Rounded', 'Hiragino Maru Gothic ProN', Meiryo, 'MS PGothic', sans-serif",
-    mono: "SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
-  },
-});
+} as const;
+
+/** Hauteur de la barre d'onglets, utilisée pour réserver l'espace de scroll. */
+export const TAB_BAR_HEIGHT = 84;
