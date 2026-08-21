@@ -11,17 +11,17 @@ import { Colors, Radius, Spacing } from '@/constants/theme';
 const SPLASH_DURATION = 1900;
 
 export default function SplashRoute() {
-  const { isLoaded, isSignedIn } = useAuth();
+  const { isLoaded } = useAuth();
 
   useEffect(() => {
     if (!isLoaded) return;
 
     const timeout = setTimeout(() => {
-      router.replace(isSignedIn ? '/(tabs)' : '/login');
+      router.replace('/(tabs)');
     }, SPLASH_DURATION);
 
     return () => clearTimeout(timeout);
-  }, [isLoaded, isSignedIn]);
+  }, [isLoaded]);
 
   return (
     <Screen edges={['top', 'bottom']}>

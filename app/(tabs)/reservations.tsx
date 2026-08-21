@@ -36,8 +36,8 @@ export default function ReservationsScreen() {
   const [tab, setTab] = useState<HistoryTab>('avenir');
   const queries = useTrackedReservations();
 
-  const isLoading = queries.length > 0 && queries.some((q) => q.isLoading);
-  const reservations = queries.map((q) => q.data).filter((r) => !!r);
+  const isLoading = queries.isLoading;
+  const reservations = queries.reservations;
 
   const upcoming = reservations.filter((r) => r.statut !== 'checkout' && r.statut !== 'annulee');
   const past = reservations.filter((r) => r.statut === 'checkout' || r.statut === 'annulee');

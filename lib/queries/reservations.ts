@@ -1,7 +1,10 @@
+import { useAuth } from '@clerk/expo';
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useSyncExternalStore } from 'react';
 
-import { createReservationRequest, getReservationByReference } from '@/lib/api/reservations';
+import { createReservationRequest, getMyReservations, getReservationByReference } from '@/lib/api/reservations';
 import { DemandeReservationPayload } from '@/lib/api/types';
+import { getGuestToken, subscribeGuestSession } from '@/lib/auth/guest-session';
 import { useAppStore } from '@/store/app-store';
 
 /** Latence de rafraîchissement du statut de réservation pendant le suivi actif. */
@@ -22,16 +25,43 @@ export function useActiveStay(options: { poll?: boolean } = {}) {
   return { reference: activeReference, query: useReservation(activeReference, options) };
 }
 
-/** Toutes les réservations suivies sur cet appareil (écran Historique). */
+export function useGuestTokenPresent() {
+  return useSyncExternalStore(subscribeGuestSession, getGuestToken, () => null);
+}
+
+/** Historique : session (Clerk / invité) si possible, sinon références locales. */
 export function useTrackedReservations() {
   const { state } = useAppStore();
+  const { isSignedIn } = useAuth();
+  const guestToken = useGuestTokenPresent();
+  const hasSession = Boolean(isSignedIn || guestToken);
 
-  return useQueries({
+  const mine = useQuery({
+    queryKey: ['reservations', 'mine', guestToken, isSignedIn],
+    queryFn: getMyReservations,
+    enabled: hasSession,
+    retry: false,
+  });
+
+  const local = useQueries({
     queries: state.trackedReferences.map((reference) => ({
       queryKey: ['reservation', reference],
       queryFn: () => getReservationByReference(reference),
+      enabled: !mine.data,
     })),
   });
+
+  if (mine.data) {
+    return {
+      isLoading: mine.isLoading,
+      reservations: mine.data,
+    };
+  }
+
+  return {
+    isLoading: local.length > 0 && local.some((q) => q.isLoading),
+    reservations: local.map((q) => q.data).filter((r) => !!r),
+  };
 }
 
 export function useCreateReservation() {
@@ -41,6 +71,7 @@ export function useCreateReservation() {
     mutationFn: (payload: DemandeReservationPayload) => createReservationRequest(payload),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['reservation', data.reference] });
+      queryClient.invalidateQueries({ queryKey: ['reservations', 'mine'] });
     },
   });
 }

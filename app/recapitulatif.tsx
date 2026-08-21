@@ -15,11 +15,14 @@ import { ScreenScroll } from '@/components/ui/screen-scroll';
 import { SectionTitle } from '@/components/ui/section-title';
 import { SummaryRow } from '@/components/ui/summary-row';
 import { Text } from '@/components/ui/text';
+import { PhoneNumberField } from '@/components/ui/phone-number-field';
 import { TextInputField } from '@/components/ui/text-input-field';
 import { HOTEL } from '@/constants/hotel';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 import { computeQuote, PAYMENT_OPTIONS } from '@/lib/booking';
 import { formatAmount, formatDay, pluralize, toISODate } from '@/lib/format';
+import { isValidPhone } from '@/lib/phone';
+import { setGuestToken } from '@/lib/auth/guest-session';
 import { useCreateReservation } from '@/lib/queries/reservations';
 import { useAppStore } from '@/store/app-store';
 
@@ -31,9 +34,15 @@ export default function RecapitulatifScreen() {
   const paymentOption = state.paymentOption;
   const room = state.selectedRoom;
 
+  const clerkEmail = user?.primaryEmailAddress?.emailAddress ?? '';
+  const storedPhone =
+    user?.primaryPhoneNumber?.phoneNumber ?? (user?.unsafeMetadata?.phone as string | undefined) ?? '';
+
   const [nom, setNom] = useState('');
-  const [telephone, setTelephone] = useState('');
+  const [email, setEmail] = useState(clerkEmail);
+  const [telephone, setTelephone] = useState(storedPhone);
   const [nomError, setNomError] = useState('');
+  const [emailError, setEmailError] = useState('');
   const [telephoneError, setTelephoneError] = useState('');
   const [submitError, setSubmitError] = useState('');
 
@@ -62,7 +71,6 @@ export default function RecapitulatifScreen() {
         ? 'À régler maintenant'
         : 'Choisissez une modalité';
 
-  const email = user?.primaryEmailAddress?.emailAddress ?? '';
   const canSubmit = !!paymentOption && !createReservation.isPending;
 
   const submit = () => {
@@ -70,25 +78,31 @@ export default function RecapitulatifScreen() {
       setNomError('Renseignez votre nom.');
       return;
     }
-    if (!telephone.trim()) {
-      setTelephoneError('Renseignez votre numéro de téléphone.');
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      setEmailError('Renseignez un e-mail valide.');
+      return;
+    }
+    if (!isValidPhone(telephone)) {
+      setTelephoneError('Indiquez un numéro valide pour le pays choisi.');
       return;
     }
     setNomError('');
+    setEmailError('');
     setTelephoneError('');
     setSubmitError('');
 
     createReservation.mutate(
       {
         clientNom: nom.trim(),
-        clientEmail: email,
+        clientEmail: email.trim(),
         clientTel: telephone.trim(),
         chambreId: room.id,
         dateArrivee: toISODate(arrival),
         dateDepart: toISODate(departure),
       },
       {
-        onSuccess: (data) => {
+        onSuccess: async (data) => {
+          if (data.guestToken) await setGuestToken(data.guestToken);
           actions.trackReference(data.reference);
           router.push('/paiement');
         },
@@ -142,14 +156,26 @@ export default function RecapitulatifScreen() {
             error={nomError}
           />
           <TextInputField
+            label="E-mail"
+            value={email}
+            onChangeText={(value) => {
+              setEmail(value);
+              setEmailError('');
+            }}
+            placeholder="vous@exemple.com"
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoComplete="email"
+            editable={!clerkEmail}
+            error={emailError}
+          />
+          <PhoneNumberField
             label="Téléphone"
             value={telephone}
-            onChangeText={(value) => {
+            onChange={(value) => {
               setTelephone(value);
               setTelephoneError('');
             }}
-            placeholder="+241 6X XX XX XX"
-            keyboardType="phone-pad"
             error={telephoneError}
           />
         </View>

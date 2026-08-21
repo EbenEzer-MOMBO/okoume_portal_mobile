@@ -2,17 +2,24 @@ import { useAuth } from '@clerk/expo';
 import { useEffect } from 'react';
 
 import { setAuthTokenGetter } from '@/lib/api/client';
+import { getGuestToken, hydrateGuestToken } from '@/lib/auth/guest-session';
 
 /**
- * Pose le getter de token Clerk utilisé par lib/api/client.ts. `getToken` de Clerk
- * change d'identité à chaque rendu, donc on republie une fonction stable qui délègue
- * toujours vers la référence la plus récente via une closure fermée sur `useAuth()`.
+ * Pose le getter de token : session Clerk en priorité, sinon jeton invité (magic link).
  */
 export function ClerkTokenBridge() {
   const { getToken } = useAuth();
 
   useEffect(() => {
-    setAuthTokenGetter(() => getToken());
+    hydrateGuestToken();
+  }, []);
+
+  useEffect(() => {
+    setAuthTokenGetter(async () => {
+      const clerkToken = await getToken();
+      if (clerkToken) return clerkToken;
+      return getGuestToken();
+    });
     return () => setAuthTokenGetter(null);
   }, [getToken]);
 

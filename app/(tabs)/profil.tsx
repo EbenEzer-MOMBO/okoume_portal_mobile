@@ -1,11 +1,13 @@
-import { useClerk, useUser } from '@clerk/expo';
+import { useAuth, useClerk, useUser } from '@clerk/expo';
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import { StyleSheet, View } from 'react-native';
 
+import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Dialog } from '@/components/ui/dialog';
 import { Divider } from '@/components/ui/divider';
+import { PhoneNumberField } from '@/components/ui/phone-number-field';
 import { Screen } from '@/components/ui/screen';
 import { ScreenScroll } from '@/components/ui/screen-scroll';
 import { SectionTitle } from '@/components/ui/section-title';
@@ -14,6 +16,8 @@ import { Text } from '@/components/ui/text';
 import { TextButton } from '@/components/ui/text-button';
 import { Toggle } from '@/components/ui/toggle';
 import { Colors, Radius, Spacing } from '@/constants/theme';
+import { isValidPhone } from '@/lib/phone';
+import { clearGuestToken, getGuestProfile, subscribeGuestSession } from '@/lib/auth/guest-session';
 import { useAppStore, type NotificationPrefs } from '@/store/app-store';
 
 const PREFS: { key: keyof NotificationPrefs; label: string }[] = [
@@ -35,19 +39,53 @@ function initialsOf(name: string | null | undefined, email: string | undefined):
 
 export default function ProfilScreen() {
   const { state, actions } = useAppStore();
-  const { user } = useUser();
+  const { user, isSignedIn } = useUser();
+  const { isSignedIn: sessionSignedIn } = useAuth();
   const { signOut } = useClerk();
+  const guestProfile = useSyncExternalStore(subscribeGuestSession, getGuestProfile, () => null);
   const [logoutOpen, setLogoutOpen] = useState(false);
 
-  const fullName = [user?.firstName, user?.lastName].filter(Boolean).join(' ') || null;
-  const email = user?.primaryEmailAddress?.emailAddress;
-  const phone = user?.primaryPhoneNumber?.phoneNumber ?? (user?.unsafeMetadata?.phone as string | undefined);
+  const storedPhone =
+    user?.primaryPhoneNumber?.phoneNumber ?? (user?.unsafeMetadata?.phone as string | undefined) ?? '';
+  const [phone, setPhone] = useState(storedPhone);
+  const [phoneError, setPhoneError] = useState('');
+  const [saveError, setSaveError] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setPhone(storedPhone);
+  }, [storedPhone]);
+
+  const fullName = [user?.firstName, user?.lastName].filter(Boolean).join(' ') || guestProfile?.nom || null;
+  const email = user?.primaryEmailAddress?.emailAddress ?? guestProfile?.email;
   const country = user?.unsafeMetadata?.country as string | undefined;
+  const hasSession = Boolean(isSignedIn || sessionSignedIn || guestProfile);
+
+  const savePhone = async () => {
+    if (!user) return;
+    if (!isValidPhone(phone)) {
+      setPhoneError('Indiquez un numéro valide pour le pays choisi.');
+      return;
+    }
+    setPhoneError('');
+    setSaveError('');
+    setSaving(true);
+    try {
+      await user.update({
+        unsafeMetadata: { ...user.unsafeMetadata, phone },
+      });
+    } catch {
+      setSaveError('Impossible d’enregistrer le numéro.');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const confirmLogout = async () => {
     setLogoutOpen(false);
-    await signOut();
-    router.replace('/login');
+    if (isSignedIn || sessionSignedIn) await signOut();
+    await clearGuestToken();
+    router.replace('/(tabs)');
   };
 
   return (
@@ -67,13 +105,40 @@ export default function ProfilScreen() {
               <Text variant="bodySm" tone="muted">
                 {email}
               </Text>
-            ) : null}
+            ) : (
+              <Text variant="bodySm" tone="muted">
+                Réservez sans compte, ou connectez-vous pour retrouver vos séjours.
+              </Text>
+            )}
           </View>
         </View>
 
         <SectionTitle spacingTop={26}>Coordonnées</SectionTitle>
         <Card padded={false}>
-          <SummaryRow label="Téléphone" value={phone ?? 'Non renseigné'} style={styles.row} />
+          <View style={styles.phoneBlock}>
+            <PhoneNumberField
+              label="Téléphone"
+              value={phone}
+              onChange={(value) => {
+                setPhone(value);
+                setPhoneError('');
+                setSaveError('');
+              }}
+              error={phoneError}
+            />
+            {saveError ? (
+              <Text variant="caption" tone="destructive">
+                {saveError}
+              </Text>
+            ) : null}
+            <Button
+              label="Enregistrer le numéro"
+              variant="secondary"
+              loading={saving}
+              disabled={!user}
+              onPress={savePhone}
+            />
+          </View>
           <Divider />
           <SummaryRow label="Pays" value={country ?? 'Non renseigné'} style={styles.row} />
         </Card>
@@ -95,18 +160,22 @@ export default function ProfilScreen() {
           ))}
         </Card>
 
-        <TextButton
-          label="Se déconnecter"
-          tone="destructive"
-          onPress={() => setLogoutOpen(true)}
-          style={styles.logout}
-        />
+        {hasSession ? (
+          <TextButton
+            label="Se déconnecter"
+            tone="destructive"
+            onPress={() => setLogoutOpen(true)}
+            style={styles.logout}
+          />
+        ) : (
+          <Button label="Se connecter" onPress={() => router.push('/login')} style={styles.logout} />
+        )}
       </ScreenScroll>
 
       <Dialog
         visible={logoutOpen}
         title="Se déconnecter ?"
-        description="Vous devrez saisir à nouveau vos identifiants pour accéder à vos réservations."
+        description="La session invité et le compte seront oubliés sur cet appareil."
         confirmLabel="Se déconnecter"
         tone="destructive"
         onConfirm={confirmLogout}
@@ -127,6 +196,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   identityBody: { flex: 1, gap: 3 },
+  phoneBlock: { padding: Spacing.lg - 1, gap: Spacing.md },
   row: { paddingVertical: Spacing.md + 2, paddingHorizontal: Spacing.lg - 1 },
   prefRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   logout: { marginTop: 28 },

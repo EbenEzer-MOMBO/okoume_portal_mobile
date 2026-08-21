@@ -225,7 +225,12 @@ export default function LoginScreen() {
             )}
           </Card>
 
-          {!pendingVerification ? <TextButton label={copy.toggle} onPress={toggleMode} style={styles.toggle} /> : null}
+          {!pendingVerification ? (
+            <>
+              <TextButton label={copy.toggle} onPress={toggleMode} style={styles.toggle} />
+              <TextButton label="Continuer sans compte" onPress={() => router.replace('/(tabs)')} />
+            </>
+          ) : null}
         </ScrollView>
       </KeyboardAvoidingView>
     </Screen>

@@ -1,5 +1,6 @@
 /** Formate un montant en francs CFA : 85000 → « 85 000 FCFA ». */
 export function formatAmount(amount: number): string {
+  if (!Number.isFinite(amount)) return '—';
   return `${String(Math.round(amount)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ')} FCFA`;
 }
 

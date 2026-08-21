@@ -56,13 +56,11 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (body !== undefined) headers['Content-Type'] = 'application/json';
 
-  if (authenticated) {
-    const token = await getAuthToken?.();
-    if (!token) {
-      throw new ApiError(401, 'Connexion requise pour cette action.');
-    }
-    headers.Authorization = `Bearer ${token}`;
+  const token = await getAuthToken?.();
+  if (authenticated && !token) {
+    throw new ApiError(401, 'Connexion requise pour cette action.');
   }
+  if (token) headers.Authorization = `Bearer ${token}`;
 
   let response: Response;
   try {
@@ -72,8 +70,12 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
       body: body !== undefined ? JSON.stringify(body) : undefined,
       signal,
     });
-  } catch {
-    throw new ApiError(0, 'Impossible de joindre le serveur. Vérifiez votre connexion.');
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : 'erreur réseau';
+    throw new ApiError(
+      0,
+      `Impossible de joindre le serveur (${API_URL}${path}). ${detail}`
+    );
   }
 
   const parsed = await parseBody(response);

@@ -31,6 +31,7 @@ export type DemandeReservationResponse = {
   success: boolean;
   reference: string;
   message: string;
+  guestToken?: string;
 };
 
 export type ReservationDetail = {
