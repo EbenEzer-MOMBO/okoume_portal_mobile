@@ -1,3 +1,4 @@
+import { useUser } from '@clerk/expo';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
@@ -16,6 +17,7 @@ import { computeQuote } from '@/lib/booking';
 import { formatAmount } from '@/lib/format';
 import { useInitiatePayment } from '@/lib/queries/payments';
 import { useReservation } from '@/lib/queries/reservations';
+import { useSyncStatus } from '@/lib/queries/sync';
 import { useAppStore } from '@/store/app-store';
 
 type Step = 'choose' | 'phone' | 'waiting';
@@ -33,6 +35,8 @@ export default function PaiementScreen() {
   const initiatePayment = useInitiatePayment();
   const reservationQuery = useReservation(step === 'waiting' ? activeReference : null, { poll: true });
   const statut = reservationQuery.data?.statut;
+  const syncStatus = useSyncStatus();
+  const { isLoaded: isUserLoaded, isSignedIn } = useUser();
 
   useEffect(() => {
     if (step === 'waiting' && statut && statut !== 'en_attente') {
@@ -95,7 +99,39 @@ export default function PaiementScreen() {
           {formatAmount(quote.due)}
         </Text>
 
-        {step === 'choose' ? (
+        {step === 'choose' && syncStatus.isLoading ? (
+          <View style={styles.checkingNetwork}>
+            <ActivityIndicator size="large" color={Colors.accent} />
+            <Text variant="bodySm" tone="muted" style={styles.checkingNetworkLabel}>
+              Vérification du service de paiement…
+            </Text>
+          </View>
+        ) : null}
+
+        {step === 'choose' && !syncStatus.isLoading && syncStatus.data?.isOnline && isUserLoaded && !isSignedIn ? (
+          <View style={styles.unavailable}>
+            <Text variant="bodyLg" style={styles.unavailableTitle}>
+              Connexion requise
+            </Text>
+            <Text variant="bodySm" tone="muted" style={styles.unavailableHint}>
+              Le paiement en ligne nécessite un compte. Connectez-vous, ou réglez votre séjour à
+              l&apos;arrivée.
+            </Text>
+            <Button
+              label="Se connecter"
+              onPress={() => router.push('/login')}
+              style={styles.confirmButton}
+            />
+            <Button
+              label="Payer à l'arrivée"
+              variant="outline"
+              onPress={() => router.replace('/(tabs)/sejour')}
+              style={styles.confirmButton}
+            />
+          </View>
+        ) : null}
+
+        {step === 'choose' && !syncStatus.isLoading && syncStatus.data?.isOnline && isSignedIn ? (
           <>
             <Text variant="sectionTitle" style={styles.methodsLabel}>
               Choisissez un mode de paiement
@@ -113,6 +149,29 @@ export default function PaiementScreen() {
               </Text>
             </View>
           </>
+        ) : null}
+
+        {step === 'choose' && !syncStatus.isLoading && !syncStatus.data?.isOnline ? (
+          <View style={styles.unavailable}>
+            <Text variant="bodyLg" style={styles.unavailableTitle}>
+              Paiement indisponible
+            </Text>
+            <Text variant="bodySm" tone="muted" style={styles.unavailableHint}>
+              Votre réservation a bien été enregistrée. Le paiement en ligne est momentanément
+              indisponible. Notre équipe vous contactera sous peu pour finaliser le règlement.
+            </Text>
+            <Button
+              label="Revérifier la connexion"
+              variant="outline"
+              onPress={() => syncStatus.refetch()}
+              style={styles.confirmButton}
+            />
+            <Button
+              label="Voir ma réservation"
+              onPress={() => router.replace('/(tabs)/sejour')}
+              style={styles.confirmButton}
+            />
+          </View>
         ) : null}
 
         {step === 'phone' && selectedMethod ? (
@@ -177,6 +236,11 @@ const styles = StyleSheet.create({
   methods: { gap: Spacing.sm + 1 },
   secure: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginTop: 22 },
   secureLabel: { flex: 1 },
+  checkingNetwork: { alignItems: 'center', gap: Spacing.md, paddingVertical: 50 },
+  checkingNetworkLabel: { textAlign: 'center' },
+  unavailable: { alignItems: 'center', gap: Spacing.sm, paddingVertical: 30 },
+  unavailableTitle: { fontWeight: '500', marginBottom: Spacing.xs },
+  unavailableHint: { textAlign: 'center', marginBottom: Spacing.md },
   phoneStep: { marginTop: 4 },
   confirmButton: { marginTop: Spacing.lg },
   error: { marginTop: Spacing.sm },

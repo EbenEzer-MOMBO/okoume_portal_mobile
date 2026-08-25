@@ -43,8 +43,12 @@ async function parseBody(response: Response): Promise<unknown> {
 }
 
 function extractMessage(body: unknown, fallback: string): string {
-  if (body && typeof body === 'object' && 'message' in body && typeof body.message === 'string') {
-    return body.message;
+  if (body && typeof body === 'object') {
+    // Le backend (`fail()`, src/lib/api/response.ts) renvoie `{ success: false, error }`.
+    // `message` est gardé en repli pour les routes qui suivraient une autre convention.
+    const record = body as Record<string, unknown>;
+    if (typeof record.error === 'string' && record.error) return record.error;
+    if (typeof record.message === 'string' && record.message) return record.message;
   }
   if (typeof body === 'string' && body) return body;
   return fallback;

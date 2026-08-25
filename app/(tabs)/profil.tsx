@@ -1,6 +1,6 @@
 import { useAuth, useClerk, useUser } from '@clerk/expo';
 import { router } from 'expo-router';
-import { useEffect, useState, useSyncExternalStore } from 'react';
+import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { Button } from '@/components/ui/button';
@@ -17,7 +17,6 @@ import { TextButton } from '@/components/ui/text-button';
 import { Toggle } from '@/components/ui/toggle';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 import { isValidPhone } from '@/lib/phone';
-import { clearGuestToken, getGuestProfile, subscribeGuestSession } from '@/lib/auth/guest-session';
 import { useAppStore, type NotificationPrefs } from '@/store/app-store';
 
 const PREFS: { key: keyof NotificationPrefs; label: string }[] = [
@@ -42,7 +41,6 @@ export default function ProfilScreen() {
   const { user, isSignedIn } = useUser();
   const { isSignedIn: sessionSignedIn } = useAuth();
   const { signOut } = useClerk();
-  const guestProfile = useSyncExternalStore(subscribeGuestSession, getGuestProfile, () => null);
   const [logoutOpen, setLogoutOpen] = useState(false);
 
   const storedPhone =
@@ -56,10 +54,10 @@ export default function ProfilScreen() {
     setPhone(storedPhone);
   }, [storedPhone]);
 
-  const fullName = [user?.firstName, user?.lastName].filter(Boolean).join(' ') || guestProfile?.nom || null;
-  const email = user?.primaryEmailAddress?.emailAddress ?? guestProfile?.email;
+  const fullName = [user?.firstName, user?.lastName].filter(Boolean).join(' ') || null;
+  const email = user?.primaryEmailAddress?.emailAddress;
   const country = user?.unsafeMetadata?.country as string | undefined;
-  const hasSession = Boolean(isSignedIn || sessionSignedIn || guestProfile);
+  const hasSession = Boolean(isSignedIn || sessionSignedIn);
 
   const savePhone = async () => {
     if (!user) return;
@@ -84,7 +82,6 @@ export default function ProfilScreen() {
   const confirmLogout = async () => {
     setLogoutOpen(false);
     if (isSignedIn || sessionSignedIn) await signOut();
-    await clearGuestToken();
     router.replace('/(tabs)');
   };
 
@@ -175,7 +172,7 @@ export default function ProfilScreen() {
       <Dialog
         visible={logoutOpen}
         title="Se déconnecter ?"
-        description="La session invité et le compte seront oubliés sur cet appareil."
+        description="Votre compte sera oublié sur cet appareil."
         confirmLabel="Se déconnecter"
         tone="destructive"
         onConfirm={confirmLogout}

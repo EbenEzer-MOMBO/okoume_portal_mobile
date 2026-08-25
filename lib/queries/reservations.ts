@@ -1,21 +1,26 @@
 import { useAuth } from '@clerk/expo';
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useSyncExternalStore } from 'react';
 
+import { ApiError } from '@/lib/api/client';
 import { createReservationRequest, getMyReservations, getReservationByReference } from '@/lib/api/reservations';
 import { DemandeReservationPayload } from '@/lib/api/types';
-import { getGuestToken, subscribeGuestSession } from '@/lib/auth/guest-session';
 import { useAppStore } from '@/store/app-store';
 
 /** Latence de rafraîchissement du statut de réservation pendant le suivi actif. */
 const POLL_INTERVAL_MS = 5000;
+
+/** Une référence introuvable (404) est définitive : inutile de réessayer ou de continuer à poller. */
+function isNotFound(error: unknown): boolean {
+  return error instanceof ApiError && error.status === 404;
+}
 
 export function useReservation(reference: string | null, options: { poll?: boolean } = {}) {
   return useQuery({
     queryKey: ['reservation', reference],
     queryFn: () => getReservationByReference(reference as string),
     enabled: !!reference,
-    refetchInterval: options.poll ? POLL_INTERVAL_MS : false,
+    retry: (failureCount, error) => !isNotFound(error) && failureCount < 3,
+    refetchInterval: (query) => (options.poll && !isNotFound(query.state.error) ? POLL_INTERVAL_MS : false),
   });
 }
 
@@ -25,21 +30,15 @@ export function useActiveStay(options: { poll?: boolean } = {}) {
   return { reference: activeReference, query: useReservation(activeReference, options) };
 }
 
-export function useGuestTokenPresent() {
-  return useSyncExternalStore(subscribeGuestSession, getGuestToken, () => null);
-}
-
-/** Historique : session (Clerk / invité) si possible, sinon références locales. */
+/** Historique : session Clerk si possible, sinon références locales. */
 export function useTrackedReservations() {
   const { state } = useAppStore();
   const { isSignedIn } = useAuth();
-  const guestToken = useGuestTokenPresent();
-  const hasSession = Boolean(isSignedIn || guestToken);
 
   const mine = useQuery({
-    queryKey: ['reservations', 'mine', guestToken, isSignedIn],
+    queryKey: ['reservations', 'mine', isSignedIn],
     queryFn: getMyReservations,
-    enabled: hasSession,
+    enabled: !!isSignedIn,
     retry: false,
   });
 

@@ -16,6 +16,7 @@ import { SummaryRow } from '@/components/ui/summary-row';
 import { Text } from '@/components/ui/text';
 import { HOTEL } from '@/constants/hotel';
 import { Spacing } from '@/constants/theme';
+import { ApiError } from '@/lib/api/client';
 import { computeQuote } from '@/lib/booking';
 import { dayFromISODate, formatAmount, formatDay } from '@/lib/format';
 import { useActiveStay } from '@/lib/queries/reservations';
@@ -74,7 +75,17 @@ export default function SejourScreen() {
 
         {query.isLoading ? <LoadingState /> : null}
 
-        {query.isError ? (
+        {query.isError && query.error instanceof ApiError && query.error.status === 404 ? (
+          <EmptyState
+            icon="bed"
+            title="Cette réservation n'existe plus"
+            description="Elle a peut-être été annulée ou n'a jamais abouti. Vous pouvez l'oublier et repartir d'une nouvelle recherche."
+            paddingVertical={80}
+            action={{ label: 'Oublier cette réservation', onPress: () => actions.untrackReference(reference) }}
+          />
+        ) : null}
+
+        {query.isError && !(query.error instanceof ApiError && query.error.status === 404) ? (
           <ErrorState
             message={query.error instanceof Error ? query.error.message : undefined}
             onRetry={() => query.refetch()}

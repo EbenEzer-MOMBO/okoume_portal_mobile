@@ -42,6 +42,7 @@ type Action =
   | { type: 'setPaymentOption'; option: PaymentOptionId }
   | { type: 'hydrateReferences'; references: string[] }
   | { type: 'trackReference'; reference: string }
+  | { type: 'untrackReference'; reference: string }
   | { type: 'addNotification'; notification: LocalNotification }
   | { type: 'readNotification'; id: string }
   | { type: 'readAllNotifications' }
@@ -75,6 +76,8 @@ function reducer(state: State, action: Action): State {
       const next = [action.reference, ...state.trackedReferences.filter((ref) => ref !== action.reference)];
       return { ...state, trackedReferences: next };
     }
+    case 'untrackReference':
+      return { ...state, trackedReferences: state.trackedReferences.filter((ref) => ref !== action.reference) };
     case 'addNotification':
       return { ...state, notifications: [action.notification, ...state.notifications] };
     case 'readNotification':
@@ -103,6 +106,7 @@ type AppStore = {
     selectRoom: (room: ChambreDisponible) => void;
     setPaymentOption: (option: PaymentOptionId) => void;
     trackReference: (reference: string) => void;
+    untrackReference: (reference: string) => void;
     addNotification: (notification: Omit<LocalNotification, 'id'>) => void;
     readNotification: (id: string) => void;
     readAllNotifications: () => void;
@@ -132,6 +136,15 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
       });
     };
 
+    const untrackReference = (reference: string) => {
+      dispatch({ type: 'untrackReference', reference });
+      AsyncStorage.getItem(TRACKED_REFERENCES_KEY).then((raw) => {
+        const current: string[] = raw ? JSON.parse(raw) : [];
+        const next = current.filter((ref) => ref !== reference);
+        AsyncStorage.setItem(TRACKED_REFERENCES_KEY, JSON.stringify(next));
+      });
+    };
+
     const addNotification = (notification: Omit<LocalNotification, 'id'>) => {
       const id = `local-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
       dispatch({ type: 'addNotification', notification: { ...notification, id } });
@@ -148,6 +161,7 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
         selectRoom: (room) => dispatch({ type: 'selectRoom', room }),
         setPaymentOption: (option) => dispatch({ type: 'setPaymentOption', option }),
         trackReference,
+        untrackReference,
         addNotification,
         readNotification: (id) => dispatch({ type: 'readNotification', id }),
         readAllNotifications: () => dispatch({ type: 'readAllNotifications' }),

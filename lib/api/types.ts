@@ -31,7 +31,6 @@ export type DemandeReservationResponse = {
   success: boolean;
   reference: string;
   message: string;
-  guestToken?: string;
 };
 
 export type ReservationDetail = {
@@ -84,4 +83,8 @@ export type InitierPaiementResponse = {
   success: boolean;
   statut: 'en_attente';
   message: string;
+};
+
+export type SyncStatusResponse = {
+  isOnline: boolean;
 };

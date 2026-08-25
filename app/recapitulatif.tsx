@@ -22,7 +22,6 @@ import { Colors, Radius, Spacing } from '@/constants/theme';
 import { computeQuote, PAYMENT_OPTIONS } from '@/lib/booking';
 import { formatAmount, formatDay, pluralize, toISODate } from '@/lib/format';
 import { isValidPhone } from '@/lib/phone';
-import { setGuestToken } from '@/lib/auth/guest-session';
 import { useCreateReservation } from '@/lib/queries/reservations';
 import { useAppStore } from '@/store/app-store';
 
@@ -101,8 +100,7 @@ export default function RecapitulatifScreen() {
         dateDepart: toISODate(departure),
       },
       {
-        onSuccess: async (data) => {
-          if (data.guestToken) await setGuestToken(data.guestToken);
+        onSuccess: (data) => {
           actions.trackReference(data.reference);
           router.push('/paiement');
         },
