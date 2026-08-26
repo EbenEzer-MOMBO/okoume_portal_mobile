@@ -4,6 +4,7 @@ import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/rea
 import { ApiError } from '@/lib/api/client';
 import { createReservationRequest, getMyReservations, getReservationByReference } from '@/lib/api/reservations';
 import { DemandeReservationPayload } from '@/lib/api/types';
+import { useGuestTokenPresent } from '@/lib/queries/auth';
 import { useAppStore } from '@/store/app-store';
 
 /** Latence de rafraîchissement du statut de réservation pendant le suivi actif. */
@@ -30,15 +31,17 @@ export function useActiveStay(options: { poll?: boolean } = {}) {
   return { reference: activeReference, query: useReservation(activeReference, options) };
 }
 
-/** Historique : session Clerk si possible, sinon références locales. */
+/** Historique : session (Clerk ou invité OTP) si possible, sinon références locales. */
 export function useTrackedReservations() {
   const { state } = useAppStore();
   const { isSignedIn } = useAuth();
+  const hasGuestToken = useGuestTokenPresent();
+  const hasSession = Boolean(isSignedIn || hasGuestToken);
 
   const mine = useQuery({
-    queryKey: ['reservations', 'mine', isSignedIn],
+    queryKey: ['reservations', 'mine', isSignedIn, hasGuestToken],
     queryFn: getMyReservations,
-    enabled: !!isSignedIn,
+    enabled: hasSession,
     retry: false,
   });
 

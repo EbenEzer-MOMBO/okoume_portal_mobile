@@ -88,3 +88,13 @@ export type InitierPaiementResponse = {
 export type SyncStatusResponse = {
   isOnline: boolean;
 };
+
+export type SendOtpResponse = {
+  success: boolean;
+  message: string;
+};
+
+export type VerifyOtpResponse = {
+  success: boolean;
+  token: string;
+};

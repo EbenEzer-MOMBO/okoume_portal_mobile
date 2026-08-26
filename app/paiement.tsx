@@ -15,6 +15,7 @@ import { PAYMENT_METHODS } from '@/constants/hotel';
 import { Colors, Spacing } from '@/constants/theme';
 import { computeQuote } from '@/lib/booking';
 import { formatAmount } from '@/lib/format';
+import { useGuestTokenPresent } from '@/lib/queries/auth';
 import { useInitiatePayment } from '@/lib/queries/payments';
 import { useReservation } from '@/lib/queries/reservations';
 import { useSyncStatus } from '@/lib/queries/sync';
@@ -37,6 +38,8 @@ export default function PaiementScreen() {
   const statut = reservationQuery.data?.statut;
   const syncStatus = useSyncStatus();
   const { isLoaded: isUserLoaded, isSignedIn } = useUser();
+  const hasGuestToken = useGuestTokenPresent();
+  const hasAccess = isSignedIn || hasGuestToken;
 
   useEffect(() => {
     if (step === 'waiting' && statut && statut !== 'en_attente') {
@@ -108,18 +111,24 @@ export default function PaiementScreen() {
           </View>
         ) : null}
 
-        {step === 'choose' && !syncStatus.isLoading && syncStatus.data?.isOnline && isUserLoaded && !isSignedIn ? (
+        {step === 'choose' && !syncStatus.isLoading && syncStatus.data?.isOnline && isUserLoaded && !hasAccess ? (
           <View style={styles.unavailable}>
             <Text variant="bodyLg" style={styles.unavailableTitle}>
               Connexion requise
             </Text>
             <Text variant="bodySm" tone="muted" style={styles.unavailableHint}>
-              Le paiement en ligne nécessite un compte. Connectez-vous, ou réglez votre séjour à
-              l&apos;arrivée.
+              Le paiement en ligne nécessite de vous identifier. Connectez-vous, continuez avec
+              votre e-mail, ou réglez votre séjour à l&apos;arrivée.
             </Text>
             <Button
               label="Se connecter"
               onPress={() => router.push('/login')}
+              style={styles.confirmButton}
+            />
+            <Button
+              label="Continuer avec mon e-mail"
+              variant="outline"
+              onPress={() => router.push('/auth/otp')}
               style={styles.confirmButton}
             />
             <Button
@@ -131,7 +140,7 @@ export default function PaiementScreen() {
           </View>
         ) : null}
 
-        {step === 'choose' && !syncStatus.isLoading && syncStatus.data?.isOnline && isSignedIn ? (
+        {step === 'choose' && !syncStatus.isLoading && syncStatus.data?.isOnline && hasAccess ? (
           <>
             <Text variant="sectionTitle" style={styles.methodsLabel}>
               Choisissez un mode de paiement

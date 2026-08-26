@@ -2,17 +2,26 @@ import { useAuth } from '@clerk/expo';
 import { useEffect } from 'react';
 
 import { setAuthTokenGetter } from '@/lib/api/client';
+import { getGuestToken, hydrateGuestToken } from '@/lib/auth/guest-session';
 
 /**
- * Pose le getter de token utilisé par `apiRequest` : le backend n'accepte que des
- * sessions Clerk pour les invités (voir `src/lib/api-auth.ts` côté okoume_portal),
- * il n'existe donc aucun jeton alternatif à fournir en repli.
+ * Pose le getter de token : session Clerk en priorité, sinon jeton invité obtenu par
+ * OTP e-mail (`/api/auth/verify-otp`, voir `lib/queries/auth.ts`) — les deux sont
+ * acceptés côté backend par `resolveActor()` (`src/lib/api-auth.ts`).
  */
 export function ClerkTokenBridge() {
   const { getToken } = useAuth();
 
   useEffect(() => {
-    setAuthTokenGetter(() => getToken());
+    hydrateGuestToken();
+  }, []);
+
+  useEffect(() => {
+    setAuthTokenGetter(async () => {
+      const clerkToken = await getToken();
+      if (clerkToken) return clerkToken;
+      return getGuestToken();
+    });
     return () => setAuthTokenGetter(null);
   }, [getToken]);
 

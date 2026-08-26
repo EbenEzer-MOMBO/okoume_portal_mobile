@@ -1,4 +1,5 @@
 import { useAuth, useClerk, useUser } from '@clerk/expo';
+import { BlurView } from 'expo-blur';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
@@ -16,7 +17,9 @@ import { Text } from '@/components/ui/text';
 import { TextButton } from '@/components/ui/text-button';
 import { Toggle } from '@/components/ui/toggle';
 import { Colors, Radius, Spacing } from '@/constants/theme';
+import { clearGuestToken, decodeGuestEmail, getGuestToken } from '@/lib/auth/guest-session';
 import { isValidPhone } from '@/lib/phone';
+import { useGuestTokenPresent } from '@/lib/queries/auth';
 import { useAppStore, type NotificationPrefs } from '@/store/app-store';
 
 const PREFS: { key: keyof NotificationPrefs; label: string }[] = [
@@ -41,6 +44,7 @@ export default function ProfilScreen() {
   const { user, isSignedIn } = useUser();
   const { isSignedIn: sessionSignedIn } = useAuth();
   const { signOut } = useClerk();
+  const hasGuestToken = useGuestTokenPresent();
   const [logoutOpen, setLogoutOpen] = useState(false);
 
   const storedPhone =
@@ -55,9 +59,10 @@ export default function ProfilScreen() {
   }, [storedPhone]);
 
   const fullName = [user?.firstName, user?.lastName].filter(Boolean).join(' ') || null;
-  const email = user?.primaryEmailAddress?.emailAddress;
+  const guestEmail = hasGuestToken ? decodeGuestEmail(getGuestToken() ?? '') : null;
+  const email = user?.primaryEmailAddress?.emailAddress ?? guestEmail ?? undefined;
   const country = user?.unsafeMetadata?.country as string | undefined;
-  const hasSession = Boolean(isSignedIn || sessionSignedIn);
+  const hasSession = Boolean(isSignedIn || sessionSignedIn || hasGuestToken);
 
   const savePhone = async () => {
     if (!user) return;
@@ -82,6 +87,7 @@ export default function ProfilScreen() {
   const confirmLogout = async () => {
     setLogoutOpen(false);
     if (isSignedIn || sessionSignedIn) await signOut();
+    if (hasGuestToken) await clearGuestToken();
     router.replace('/(tabs)');
   };
 
@@ -97,7 +103,7 @@ export default function ProfilScreen() {
             </Text>
           </View>
           <View style={styles.identityBody}>
-            <Text variant="cardTitle">{fullName ?? email ?? 'Client Okoumé'}</Text>
+            <Text variant="cardTitle">{fullName ?? email ?? 'Client Ya Hôtel'}</Text>
             {email ? (
               <Text variant="bodySm" tone="muted">
                 {email}
@@ -164,10 +170,30 @@ export default function ProfilScreen() {
             onPress={() => setLogoutOpen(true)}
             style={styles.logout}
           />
-        ) : (
-          <Button label="Se connecter" onPress={() => router.push('/login')} style={styles.logout} />
-        )}
+        ) : null}
       </ScreenScroll>
+
+      {!hasSession ? (
+        <BlurView intensity={30} tint="light" style={StyleSheet.absoluteFillObject}>
+          <View style={styles.gateOverlay}>
+            <Card style={styles.gateCard} elevated>
+              <Text variant="cardTitle" style={styles.gateTitle}>
+                Connectez-vous
+              </Text>
+              <Text variant="bodySm" tone="muted" style={styles.gateHint}>
+                Créez un compte ou connectez-vous pour gérer votre profil et retrouver vos séjours.
+              </Text>
+              <Button label="Se connecter" onPress={() => router.push('/login')} style={styles.gateButton} />
+              <Button
+                label="Continuer avec mon e-mail"
+                variant="outline"
+                onPress={() => router.push('/auth/otp')}
+                style={styles.gateButton}
+              />
+            </Card>
+          </View>
+        </BlurView>
+      ) : null}
 
       <Dialog
         visible={logoutOpen}
@@ -197,4 +223,9 @@ const styles = StyleSheet.create({
   row: { paddingVertical: Spacing.md + 2, paddingHorizontal: Spacing.lg - 1 },
   prefRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   logout: { marginTop: 28 },
+  gateOverlay: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: Spacing.xl },
+  gateCard: { width: '100%', maxWidth: 360, alignItems: 'center', gap: Spacing.md },
+  gateTitle: { textAlign: 'center' },
+  gateHint: { textAlign: 'center' },
+  gateButton: { width: '100%' },
 });
