@@ -1,5 +1,5 @@
 /**
- * Design system Okoumé — source unique de vérité pour les couleurs, la
+ * Design system Ya Hôtel — source unique de vérité pour les couleurs, la
  * typographie, les espacements et les rayons utilisés dans toute l'app.
  * Toute valeur littérale (hex, taille de police) doit être déclarée ici.
  */

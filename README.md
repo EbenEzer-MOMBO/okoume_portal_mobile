@@ -1,6 +1,6 @@
-# Okoumé — App mobile Client
+# Ya Hôtel — App mobile Client
 
-Application mobile (Expo SDK 54 / React Native) permettant aux clients de l'Hôtel Okoumé
+Application mobile (Expo SDK 54 / React Native) permettant aux clients de Ya Hôtel
 de rechercher une chambre, réserver, payer, suivre leur séjour et commander en room service.
 
 L'interface est l'implémentation du prototype Claude Design **App Client Okoumé**, branchée

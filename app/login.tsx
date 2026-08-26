@@ -2,7 +2,7 @@
 import { useSignIn, useSignUp } from '@clerk/expo/legacy';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import { Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
 
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -149,6 +149,8 @@ export default function LoginScreen() {
           contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}>
+          <Image source={require('@/assets/images/splash-icon.png')} style={styles.logo} resizeMode="contain" />
+
           <Card style={styles.card} elevated>
             {pendingVerification ? (
               <>
@@ -240,6 +242,7 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   content: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: Spacing['2xl'] },
+  logo: { width: 140, height: 140, alignSelf: 'center', marginBottom: Spacing.lg },
   card: { paddingTop: 28, paddingHorizontal: 22, paddingBottom: Spacing['2xl'] },
   title: { fontSize: 28 },
   subtitle: { marginTop: Spacing.xs + 2 },

@@ -74,7 +74,7 @@ export const PAYMENT_METHODS: PaymentMethod[] = [
 ];
 
 export const HOTEL = {
-  name: 'Hôtel Okoumé',
+  name: 'Ya Hôtel',
   city: 'Libreville',
   address: 'Boulevard du Bord de Mer, Libreville',
   phone: '+241 11 44 22 08',

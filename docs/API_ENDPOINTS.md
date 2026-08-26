@@ -1,4 +1,4 @@
-# API_ENDPOINTS.md — Kina Hôtel (Okoume Portal)
+# API_ENDPOINTS.md — Ya Hôtel (Okoume Portal)
 
 > Copie de la documentation backend (`okoume_portal/API_ENDPOINTS.md`), tenue à jour
 > manuellement à chaque changement d'API côté serveur. La documentation de référence
