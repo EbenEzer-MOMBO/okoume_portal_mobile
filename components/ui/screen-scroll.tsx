@@ -1,4 +1,4 @@
-import { ScrollView, StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
+import { RefreshControlProps, ScrollView, StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Spacing, TAB_BAR_HEIGHT } from '@/constants/theme';
@@ -10,6 +10,7 @@ export type ScreenScrollProps = {
   paddingHorizontal?: number;
   paddingTop?: number;
   contentStyle?: StyleProp<ViewStyle>;
+  refreshControl?: React.ReactElement<RefreshControlProps>;
 };
 
 /** Zone scrollable d'un écran, avec les marges standard du design system. */
@@ -19,6 +20,7 @@ export function ScreenScroll({
   paddingHorizontal = Spacing.xl,
   paddingTop = Spacing.xl,
   contentStyle,
+  refreshControl,
 }: ScreenScrollProps) {
   const insets = useSafeAreaInsets();
 
@@ -26,6 +28,7 @@ export function ScreenScroll({
     <ScrollView
       style={styles.scroll}
       showsVerticalScrollIndicator={false}
+      refreshControl={refreshControl}
       contentContainerStyle={[
         {
           paddingHorizontal,

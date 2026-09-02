@@ -49,15 +49,15 @@ export function getStayCopy(statut: ReservationStatut, arrival: number, departur
 export function getStatutBadge(statut: ReservationStatut): { label: string; tone: BadgeTone } {
   switch (statut) {
     case 'confirmee':
-      return { label: 'Confirmée', tone: 'dark' };
+      return { label: '✓ Payée en ligne — Check-in à finaliser', tone: 'dark' };
     case 'checkin':
-      return { label: 'En cours', tone: 'dark' };
+      return { label: 'Séjour en cours (Check-in actif)', tone: 'dark' };
     case 'checkout':
       return { label: 'Terminée', tone: 'muted' };
     case 'annulee':
       return { label: 'Refusée', tone: 'destructive' };
     case 'en_attente':
     default:
-      return { label: 'En attente', tone: 'muted' };
+      return { label: 'Paiement en attente', tone: 'muted' };
   }
 }

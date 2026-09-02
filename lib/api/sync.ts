@@ -9,7 +9,7 @@ import { SyncStatusResponse } from '@/lib/api/types';
  */
 export async function getSyncStatus(): Promise<SyncStatusResponse> {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 3000);
+  const timeoutId = setTimeout(() => controller.abort(), 10000);
   try {
     return await apiRequest<SyncStatusResponse>('/api/sync/status', { signal: controller.signal });
   } catch {

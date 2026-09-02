@@ -74,7 +74,7 @@ export default function ResultatsScreen() {
     <Screen>
       <ScreenHeader
         title={formatRange(arrival, departure)}
-        subtitle={`${pluralize(nights, 'nuit')} · ${guests} voyageurs · ${roomType}`}
+        subtitle={`${pluralize(nights, 'nuit')} · ${state.search.adults || '2'} ad. · ${state.search.children || '0'} enf. · ${roomType}`}
         align="center"
         action={{ icon: 'filters', label: 'Filtrer les résultats', onPress: () => setFiltersOpen(true) }}
       />

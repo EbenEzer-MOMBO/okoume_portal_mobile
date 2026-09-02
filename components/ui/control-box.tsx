@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
+import { Icon } from '@/components/ui/icon';
 import { Text } from '@/components/ui/text';
 import { Colors, ControlHeight, Radius, Spacing } from '@/constants/theme';
 
@@ -14,7 +15,8 @@ export type ControlBoxProps = {
 export function ControlBox({ value, onPress, accessibilityLabel, style }: ControlBoxProps) {
   const content = (
     <View style={[styles.box, style]}>
-      <Text variant="body">{value}</Text>
+      <Text variant="body" style={{ flex: 1 }}>{value}</Text>
+      {onPress && <Icon name="chevronDown" size={16} color={Colors.textSubtle} />}
     </View>
   );
 
@@ -37,7 +39,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.border,
     borderRadius: Radius.md,
-    justifyContent: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: Spacing.md,
     backgroundColor: Colors.surface,
   },

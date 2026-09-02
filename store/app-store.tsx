@@ -24,7 +24,14 @@ export type NotificationPrefs = {
 };
 
 type State = {
-  search: { arrival: number; departure: number; roomType: RoomType; guests: string };
+  search: {
+    arrival: number;
+    departure: number;
+    roomType: RoomType;
+    guests: string;
+    adults: string;
+    children: string;
+  };
   selectedRoom: ChambreDisponible | null;
   /** Modalité de paiement choisie sur le Récapitulatif, lue par l'écran Paiement. */
   paymentOption: PaymentOptionId | null;
@@ -38,6 +45,8 @@ type Action =
   | { type: 'setDates'; arrival: number; departure: number }
   | { type: 'setRoomType'; roomType: RoomType }
   | { type: 'setGuests'; guests: string }
+  | { type: 'setAdults'; adults: string }
+  | { type: 'setChildren'; children: string }
   | { type: 'selectRoom'; room: ChambreDisponible }
   | { type: 'setPaymentOption'; option: PaymentOptionId }
   | { type: 'hydrateReferences'; references: string[] }
@@ -48,10 +57,29 @@ type Action =
   | { type: 'readAllNotifications' }
   | { type: 'togglePref'; key: keyof NotificationPrefs };
 
+const getInitialSearchDates = () => {
+  const today = new Date();
+  today.setHours(14, 0, 0, 0);
+  const arrival = today.getTime();
+  const dep = new Date(today);
+  dep.setDate(dep.getDate() + 3);
+  const departure = dep.getTime();
+  return { arrival, departure };
+};
+
+const initialSearchDates = getInitialSearchDates();
+
 const INITIAL_STATE: State = {
-  search: { arrival: 12, departure: 15, roomType: ROOM_TYPES[0], guests: '2' },
+  search: {
+    arrival: initialSearchDates.arrival,
+    departure: initialSearchDates.departure,
+    roomType: ROOM_TYPES[0],
+    guests: '2',
+    adults: '2',
+    children: '0',
+  },
   selectedRoom: null,
-  paymentOption: null,
+  paymentOption: 'integral',
   trackedReferences: [],
   referencesHydrated: false,
   notifications: [],
@@ -66,6 +94,14 @@ function reducer(state: State, action: Action): State {
       return { ...state, search: { ...state.search, roomType: action.roomType } };
     case 'setGuests':
       return { ...state, search: { ...state.search, guests: action.guests } };
+    case 'setAdults': {
+      const nextGuests = String(parseInt(action.adults) + parseInt(state.search.children));
+      return { ...state, search: { ...state.search, adults: action.adults, guests: nextGuests } };
+    }
+    case 'setChildren': {
+      const nextGuests = String(parseInt(state.search.adults) + parseInt(action.children));
+      return { ...state, search: { ...state.search, children: action.children, guests: nextGuests } };
+    }
     case 'selectRoom':
       return { ...state, selectedRoom: action.room };
     case 'setPaymentOption':
@@ -103,6 +139,8 @@ type AppStore = {
     setDates: (arrival: number, departure: number) => void;
     setRoomType: (roomType: RoomType) => void;
     setGuests: (guests: string) => void;
+    setAdults: (adults: string) => void;
+    setChildren: (children: string) => void;
     selectRoom: (room: ChambreDisponible) => void;
     setPaymentOption: (option: PaymentOptionId) => void;
     trackReference: (reference: string) => void;
@@ -158,6 +196,8 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
         setDates: (arrival, departure) => dispatch({ type: 'setDates', arrival, departure }),
         setRoomType: (roomType) => dispatch({ type: 'setRoomType', roomType }),
         setGuests: (guests) => dispatch({ type: 'setGuests', guests }),
+        setAdults: (adults) => dispatch({ type: 'setAdults', adults }),
+        setChildren: (children) => dispatch({ type: 'setChildren', children }),
         selectRoom: (room) => dispatch({ type: 'selectRoom', room }),
         setPaymentOption: (option) => dispatch({ type: 'setPaymentOption', option }),
         trackReference,

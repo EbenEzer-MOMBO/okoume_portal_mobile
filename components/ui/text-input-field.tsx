@@ -1,4 +1,4 @@
-import { StyleSheet, TextInput, type TextInputProps } from 'react-native';
+import { StyleSheet, TextInput, type StyleProp, type TextStyle, type TextInputProps } from 'react-native';
 
 import { Field } from '@/components/ui/field';
 import { Colors, ControlHeight, FontFamily, Radius, Spacing } from '@/constants/theme';
@@ -6,11 +6,12 @@ import { Colors, ControlHeight, FontFamily, Radius, Spacing } from '@/constants/
 export type TextInputFieldProps = TextInputProps & {
   label: string;
   error?: string;
+  labelStyle?: StyleProp<TextStyle>;
 };
 
-export function TextInputField({ label, error, style, ...props }: TextInputFieldProps) {
+export function TextInputField({ label, error, style, labelStyle, ...props }: TextInputFieldProps) {
   return (
-    <Field label={label} error={error}>
+    <Field label={label} error={error} labelStyle={labelStyle}>
       <TextInput
         placeholderTextColor={Colors.textSubtle}
         {...props}

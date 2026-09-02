@@ -100,7 +100,7 @@ export default function ConfirmationScreen() {
       </ScreenScroll>
 
       <View style={[styles.footer, { paddingBottom: Spacing.xl + insets.bottom }]}>
-        <Button label="Voir mon séjour" size="lg" onPress={() => router.replace('/(tabs)/sejour')} />
+        <Button label="Voir mes réservations" size="lg" onPress={() => router.replace('/(tabs)/reservations')} />
       </View>
     </Screen>
   );

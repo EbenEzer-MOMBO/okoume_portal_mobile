@@ -10,7 +10,6 @@
     "lint": "expo lint"
   },
   "dependencies": {
-    "@clerk/expo": "^4.5.1",
     "@expo-google-fonts/fraunces": "^0.4.1",
     "@expo-google-fonts/ibm-plex-mono": "^0.4.1",
     "@expo-google-fonts/inter": "^0.4.2",

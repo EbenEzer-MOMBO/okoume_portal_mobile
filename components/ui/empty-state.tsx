@@ -1,3 +1,4 @@
+import { Image } from 'expo-image';
 import { StyleSheet, View } from 'react-native';
 
 import { Button } from '@/components/ui/button';
@@ -6,7 +7,8 @@ import { Text } from '@/components/ui/text';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 
 export type EmptyStateProps = {
-  icon: IconName;
+  icon?: IconName;
+  imageSource?: any;
   title: string;
   description: string;
   action?: { label: string; onPress: () => void };
@@ -14,9 +16,10 @@ export type EmptyStateProps = {
   paddingVertical?: number;
 };
 
-/** État vide standard : médaillon, titre serif, texte d'accompagnement. */
+/** État vide standard : médaillon / image d'icône, titre serif, texte d'accompagnement. */
 export function EmptyState({
   icon,
+  imageSource,
   title,
   description,
   action,
@@ -25,9 +28,13 @@ export function EmptyState({
 }: EmptyStateProps) {
   return (
     <View style={[styles.container, { paddingVertical }]}>
-      <View style={styles.medallion}>
-        <Icon name={icon} size={22} color={Colors.accent} />
-      </View>
+      {imageSource ? (
+        <Image source={imageSource} style={styles.imageIcon} contentFit="contain" />
+      ) : icon ? (
+        <View style={styles.medallion}>
+          <Icon name={icon} size={22} color={Colors.accent} />
+        </View>
+      ) : null}
       <Text variant="heading">{title}</Text>
       <Text variant="body" tone="muted" style={styles.description}>
         {description}
@@ -42,6 +49,10 @@ export function EmptyState({
 
 const styles = StyleSheet.create({
   container: { alignItems: 'center', gap: Spacing.md, paddingHorizontal: Spacing.md },
+  imageIcon: {
+    width: 64,
+    height: 64,
+  },
   medallion: {
     width: 52,
     height: 52,

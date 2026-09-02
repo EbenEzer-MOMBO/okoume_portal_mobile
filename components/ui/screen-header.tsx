@@ -11,23 +11,28 @@ export type ScreenHeaderProps = {
   /** Alignement du titre : à gauche du bouton retour, ou centré entre les actions. */
   align?: 'left' | 'center';
   onBack?: () => void;
+  showBack?: boolean;
   /** Action de droite (filtres…). */
   action?: { icon: Parameters<typeof Icon>[0]['name']; label: string; onPress: () => void };
 };
 
 /** En-tête d'écran empilé : retour, titre, action optionnelle. */
-export function ScreenHeader({ title, subtitle, align = 'left', onBack, action }: ScreenHeaderProps) {
+export function ScreenHeader({ title, subtitle, align = 'left', onBack, showBack = true, action }: ScreenHeaderProps) {
   const goBack = onBack ?? (() => (router.canGoBack() ? router.back() : router.replace('/(tabs)')));
 
   return (
     <View style={styles.header}>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Retour"
-        onPress={goBack}
-        style={({ pressed }) => [styles.iconButton, { opacity: pressed ? 0.6 : 1 }]}>
-        <Icon name="back" size={20} />
-      </Pressable>
+      {showBack ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Retour"
+          onPress={goBack}
+          style={({ pressed }) => [styles.iconButton, { opacity: pressed ? 0.6 : 1 }]}>
+          <Icon name="back" size={20} />
+        </Pressable>
+      ) : (
+        align === 'center' && <View style={styles.iconButton} />
+      )}
 
       <View style={align === 'center' ? styles.titleCentered : styles.titleLeft}>
         <Text variant="cardTitle" style={styles.title}>

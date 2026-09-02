@@ -1,25 +1,25 @@
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Image, Pressable, StyleSheet, View, ImageSourcePropType } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { Icon, type IconName } from '@/components/ui/icon';
 import { Text } from '@/components/ui/text';
-import { Colors, Radius, Spacing, TAB_BAR_HEIGHT } from '@/constants/theme';
-import { useAppStore } from '@/store/app-store';
+import { Colors, Spacing, TAB_BAR_HEIGHT } from '@/constants/theme';
 
-const TABS: Record<string, { label: string; icon: IconName }> = {
-  index: { label: 'Accueil', icon: 'home' },
-  sejour: { label: 'Séjour', icon: 'bed' },
-  reservations: { label: 'Réservations', icon: 'clock' },
-  notifications: { label: 'Alertes', icon: 'bell' },
-  profil: { label: 'Profil', icon: 'profile' },
+const houseIcon = require('@/assets/icons/house.png');
+const reservationIcon = require('@/assets/icons/reservation.png');
+const restaurantIcon = require('@/assets/icons/restaurant.png');
+const profileIcon = require('@/assets/icons/profile.png');
+
+const TABS: Record<string, { label: string; icon: ImageSourcePropType }> = {
+  index: { label: 'Accueil', icon: houseIcon },
+  reservations: { label: 'Réservations', icon: reservationIcon },
+  restaurant: { label: 'Restaurant', icon: restaurantIcon },
+  profil: { label: 'Profil', icon: profileIcon },
 };
 
-/** Barre d'onglets du design system : icône, libellé, pastille de non-lus. */
+/** Barre d'onglets du design system : icône PNG personnalisée et libellé. */
 export function TabBar({ state, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
-  const { unreadCount } = useAppStore();
-  const showBadge = unreadCount > 0;
 
   return (
     <View style={[styles.bar, { height: TAB_BAR_HEIGHT + insets.bottom, paddingBottom: insets.bottom }]}>
@@ -45,17 +45,14 @@ export function TabBar({ state, navigation }: BottomTabBarProps) {
             accessibilityLabel={tab.label}
             onPress={onPress}
             style={styles.tab}>
-            <Icon name={tab.icon} size={22} color={color} />
+            <Image
+              source={tab.icon}
+              style={[styles.icon, { tintColor: color }]}
+              resizeMode="contain"
+            />
             <Text variant="caption" style={[styles.label, { color }]}>
               {tab.label}
             </Text>
-            {route.name === 'notifications' && showBadge ? (
-              <View style={styles.badge}>
-                <Text variant="caption" tone="inverse" style={styles.badgeLabel}>
-                  {unreadCount}
-                </Text>
-              </View>
-            ) : null}
           </Pressable>
         );
       })}
@@ -73,19 +70,6 @@ const styles = StyleSheet.create({
     borderTopColor: Colors.border,
   },
   tab: { flex: 1, alignItems: 'center', gap: Spacing.xs },
+  icon: { width: 22, height: 22 },
   label: { fontSize: 10, lineHeight: 14 },
-  badge: {
-    position: 'absolute',
-    top: -3,
-    left: '50%',
-    marginLeft: 5,
-    minWidth: 16,
-    height: 16,
-    borderRadius: Radius.pill,
-    backgroundColor: Colors.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 4,
-  },
-  badgeLabel: { fontSize: 10, lineHeight: 14, fontWeight: '600' },
 });

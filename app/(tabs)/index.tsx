@@ -1,139 +1,139 @@
-import { router } from 'expo-router';
-import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { router } from "expo-router";
+import { Image } from "expo-image";
+import { StyleSheet, View } from "react-native";
 
-import { Button } from '@/components/ui/button';
-import { BottomSheet } from '@/components/ui/bottom-sheet';
-import { Calendar } from '@/components/ui/calendar';
-import { Card } from '@/components/ui/card';
-import { ControlBox } from '@/components/ui/control-box';
-import { Field } from '@/components/ui/field';
-import { Screen } from '@/components/ui/screen';
-import { ScreenScroll } from '@/components/ui/screen-scroll';
-import { SelectField } from '@/components/ui/select-field';
-import { Text } from '@/components/ui/text';
-import { StayBanner } from '@/components/stay/stay-banner';
-import { GUEST_OPTIONS, HOTEL, ROOM_TYPES, RoomType } from '@/constants/hotel';
-import { Spacing } from '@/constants/theme';
-import { BOOKING_MONTH_LABEL, formatDay } from '@/lib/format';
-import { useActiveStay } from '@/lib/queries/reservations';
-import { useAppStore } from '@/store/app-store';
-
-/** Nombre de nuits appliqué par défaut quand l'arrivée dépasse le départ. */
-const DEFAULT_STAY_LENGTH = 3;
-
-type CalendarTarget = 'arrival' | 'departure';
-
-const ROOM_TYPE_OPTIONS = ROOM_TYPES.map((type) => ({ value: type, label: type }));
+import { MobileSearchWidget } from "@/components/booking/mobile-search-widget";
+import { RoomCard } from "@/components/booking/room-card";
+import { Button } from "@/components/ui/button";
+import { Screen } from "@/components/ui/screen";
+import { ScreenScroll } from "@/components/ui/screen-scroll";
+import { RoomCardSkeleton } from "@/components/ui/skeleton";
+import { Text } from "@/components/ui/text";
+import { HOTEL } from "@/constants/hotel";
+import { Colors, FontFamily, Spacing } from "@/constants/theme";
+import { useAllRooms } from "@/lib/queries/rooms";
+import { useAppStore } from "@/store/app-store";
 
 export default function AccueilScreen() {
-  const { state, actions } = useAppStore();
-  const { arrival, departure, roomType, guests } = state.search;
-  const { query: stayQuery } = useActiveStay();
-  const stay = stayQuery.data;
+  const { actions } = useAppStore();
+  const roomsQuery = useAllRooms();
+  const rooms = roomsQuery.data ?? [];
 
-  const [calendarTarget, setCalendarTarget] = useState<CalendarTarget | null>(null);
-  const [dateError, setDateError] = useState('');
-
-  const selectDay = (day: number) => {
-    if (calendarTarget === 'arrival') {
-      actions.setDates(day, day >= departure ? day + DEFAULT_STAY_LENGTH : departure);
-      setDateError('');
-    } else if (day <= arrival) {
-      setDateError("La date de départ doit suivre la date d'arrivée.");
-    } else {
-      actions.setDates(arrival, day);
-      setDateError('');
+  const openRoom = (roomId: number) => {
+    const room = rooms.find((r) => r.id === roomId);
+    if (room) {
+      actions.selectRoom(room as any);
+      router.push(`/chambre/${roomId}` as any);
     }
-    setCalendarTarget(null);
   };
 
   return (
     <Screen>
-      <ScreenScroll withTabBar paddingTop={Spacing['2xl']}>
-        {stay ? (
-          <StayBanner
-            label={`${stay.chambre.type_chambre} · ${stay.dateArrivee}`}
-            onPress={() => router.push('/(tabs)/sejour')}
+      <ScreenScroll withTabBar paddingTop={Spacing.md}>
+        {/* Conteneur Hero complet positionné vers le bas */}
+        <View style={styles.heroBox}>
+          <Image
+            source={require("@/assets/images/hero.jpg")}
+            style={StyleSheet.absoluteFillObject}
+            contentFit="cover"
+            contentPosition="bottom center"
           />
-        ) : null}
+          <View style={styles.heroOverlay} />
 
-        <Text variant="title" style={[styles.title, stay && styles.titleWithBanner]}>
-          Trouvez votre chambre
-        </Text>
-        <Text variant="body" tone="muted" style={styles.subtitle}>
-          {HOTEL.name} · {HOTEL.city}
-        </Text>
-
-        <Card style={styles.form} elevated>
-          <View style={styles.dates}>
-            <Field label="Arrivée" icon="calendar" style={styles.dateField}>
-              <ControlBox
-                value={formatDay(arrival)}
-                accessibilityLabel="Choisir la date d'arrivée"
-                onPress={() => setCalendarTarget('arrival')}
-              />
-            </Field>
-            <Field label="Départ" icon="calendar" style={styles.dateField}>
-              <ControlBox
-                value={formatDay(departure)}
-                accessibilityLabel="Choisir la date de départ"
-                onPress={() => setCalendarTarget('departure')}
-              />
-            </Field>
-          </View>
-
-          {dateError ? (
-            <Text variant="caption" tone="destructive">
-              {dateError}
+          <View style={styles.heroContent}>
+            <Text style={styles.heroOverline}>
+              {HOTEL.name} · {HOTEL.city}
             </Text>
-          ) : null}
+            <Text style={styles.heroTitle}>
+              Trouvez votre chambre
+            </Text>
 
-          <SelectField
-            label="Type de chambre"
-            icon="bed"
-            value={roomType}
-            options={ROOM_TYPE_OPTIONS}
-            onChange={(value) => actions.setRoomType(value as RoomType)}
-          />
+            <View style={styles.formContainer}>
+              <MobileSearchWidget />
+            </View>
+          </View>
+        </View>
 
-          <SelectField
-            label="Voyageurs"
-            icon="guests"
-            value={guests}
-            options={GUEST_OPTIONS}
-            onChange={actions.setGuests}
-          />
-
-          <Button label="Rechercher" icon="search" onPress={() => router.push('/resultats')} />
-        </Card>
-
-        <Text variant="caption" tone="subtle" style={styles.notice}>
-          {HOTEL.cancellationNotice}
-        </Text>
+        {roomsQuery.isLoading ? (
+          <View style={styles.catalogSection}>
+            <View style={styles.catalogList}>
+              <RoomCardSkeleton />
+              <RoomCardSkeleton />
+            </View>
+          </View>
+        ) : rooms.length > 0 ? (
+          <View style={styles.catalogSection}>
+            <View style={styles.catalogList}>
+              {rooms.slice(0, 5).map((room) => (
+                <RoomCard
+                  key={room.id}
+                  room={room as any}
+                  onPress={() => openRoom(room.id)}
+                />
+              ))}
+            </View>
+            <Button
+              label="Voir toutes nos chambres"
+              variant="outline"
+              onPress={() => router.push('/chambres-catalogue' as any)}
+              style={styles.catalogButton}
+            />
+          </View>
+        ) : null}
       </ScreenScroll>
-
-      <BottomSheet
-        visible={calendarTarget !== null}
-        onClose={() => setCalendarTarget(null)}
-        title={calendarTarget === 'departure' ? 'Date de départ' : "Date d'arrivée"}
-        titleAccessory={
-          <Text variant="bodySm" tone="muted">
-            {BOOKING_MONTH_LABEL}
-          </Text>
-        }>
-        <Calendar arrival={arrival} departure={departure} onSelectDay={selectDay} />
-      </BottomSheet>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  title: { fontSize: 32, lineHeight: 37 },
-  titleWithBanner: { marginTop: 22 },
-  subtitle: { marginTop: Spacing.sm },
-  form: { marginTop: Spacing.xl, gap: Spacing.md + 2, padding: Spacing.lg + 2 },
-  dates: { flexDirection: 'row', gap: Spacing.sm + 2 },
-  dateField: { flex: 1 },
-  notice: { marginTop: Spacing.lg },
+  heroBox: {
+    width: "100%",
+    minHeight: 290,
+    position: "relative",
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: Colors.border,
+    justifyContent: "flex-end",
+  },
+  heroOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(28, 27, 25, 0.4)",
+  },
+  heroContent: {
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.xl,
+    paddingBottom: Spacing.lg,
+    alignItems: "center",
+    justifyContent: "flex-end",
+  },
+  heroOverline: {
+    fontSize: 10,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 2,
+    color: "#E5E1D8",
+    textAlign: "center",
+    marginBottom: 4,
+  },
+  heroTitle: {
+    fontSize: 22,
+    lineHeight: 27,
+    fontFamily: FontFamily.serif,
+    textAlign: "center",
+    color: "#FFFFFF",
+    marginBottom: Spacing.sm + 2,
+  },
+  formContainer: {
+    width: "100%",
+  },
+  catalogSection: {
+    marginTop: Spacing["2xl"],
+    paddingBottom: Spacing.xl,
+  },
+  catalogList: {
+    gap: Spacing.xl,
+  },
+  catalogButton: {
+    marginTop: Spacing.xl,
+  },
 });

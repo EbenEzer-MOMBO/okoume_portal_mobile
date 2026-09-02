@@ -21,28 +21,43 @@ type RoomServiceCart = {
 
 const RoomServiceCartContext = createContext<RoomServiceCart | null>(null);
 
+function getMaxStock(item: MenuItem): number {
+  if (typeof item.stock === 'number' && item.stock >= 0) {
+    return item.stock;
+  }
+  return 20;
+}
+
 export function RoomServiceCartProvider({ children }: { children: ReactNode }) {
   const [lines, setLines] = useState<CartLine[]>([]);
 
   const value = useMemo<RoomServiceCart>(() => {
     const add = (item: MenuItem) => {
+      const maxStock = getMaxStock(item);
       setLines((current) => {
         const existing = current.find((line) => line.item.id === item.id);
         if (existing) {
+          if (existing.quantity >= maxStock) return current;
           return current.map((line) =>
             line.item.id === item.id ? { ...line, quantity: line.quantity + 1 } : line
           );
         }
+        if (maxStock <= 0) return current;
         return [...current, { item, quantity: 1, notes: '' }];
       });
     };
 
     const setQuantity = (menuItemId: number, quantity: number) => {
-      setLines((current) =>
-        quantity <= 0
-          ? current.filter((line) => line.item.id !== menuItemId)
-          : current.map((line) => (line.item.id === menuItemId ? { ...line, quantity } : line))
-      );
+      setLines((current) => {
+        const existing = current.find((line) => line.item.id === menuItemId);
+        if (!existing) return current;
+        if (quantity <= 0) {
+          return current.filter((line) => line.item.id !== menuItemId);
+        }
+        const maxStock = getMaxStock(existing.item);
+        const clampedQty = Math.min(quantity, maxStock);
+        return current.map((line) => (line.item.id === menuItemId ? { ...line, quantity: clampedQty } : line));
+      });
     };
 
     const setNotes = (menuItemId: number, notes: string) => {

@@ -36,7 +36,4 @@ if (__DEV__) {
   console.log(`[api] API_URL=${API_URL}`);
 }
 
-export const CLERK_PUBLISHABLE_KEY = requireEnv(
-  'EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY',
-  process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY
-);
+

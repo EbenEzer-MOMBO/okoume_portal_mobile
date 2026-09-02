@@ -75,6 +75,6 @@ const styles = StyleSheet.create({
   label: { flexShrink: 1 },
   value: { flexShrink: 1, textAlign: 'right' },
   totalLabel: { fontWeight: '600' },
-  totalValue: { fontSize: 21 },
+  totalValue: {},
   action: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs + 2 },
 });

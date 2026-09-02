@@ -18,27 +18,28 @@ export function PaymentMethodCard({ method, onPress }: PaymentMethodCardProps) {
       accessibilityRole="button"
       accessibilityLabel={`Payer avec ${method.name}`}
       onPress={onPress}
-      style={({ pressed }) => [styles.card, { opacity: pressed ? 0.9 : 1 }]}>
+      disabled={method.comingSoon}
+      style={({ pressed }) => [styles.card, method.comingSoon && styles.cardDisabled, { opacity: pressed && !method.comingSoon ? 0.9 : 1 }]}>
       {method.logo ? (
-        <Image source={method.logo} style={styles.logo} contentFit="contain" transition={120} />
+        <Image source={method.logo} style={[styles.logo, method.comingSoon && styles.logoDisabled]} contentFit="contain" transition={120} />
       ) : (
-        <View style={[styles.logo, styles.initials, { backgroundColor: method.color }]}>
-          <Text variant="label" tone="inverse">
+        <View style={[styles.logo, styles.initials, { backgroundColor: method.comingSoon ? Colors.backgroundMuted : method.color }]}>
+          <Text variant="label" tone={method.comingSoon ? 'muted' : 'inverse'}>
             {method.initials}
           </Text>
         </View>
       )}
 
       <View style={styles.body}>
-        <Text variant="label" style={styles.name}>
+        <Text variant="label" style={[styles.name, method.comingSoon && styles.textDisabled]}>
           {method.name}
         </Text>
         <Text variant="caption" tone="muted">
-          {method.hint}
+          {method.comingSoon ? 'Bientôt disponible' : method.hint}
         </Text>
       </View>
 
-      <Icon name="chevron" size={18} color={Colors.textSubtle} />
+      {!method.comingSoon && <Icon name="chevron" size={18} color={Colors.textSubtle} />}
     </Pressable>
   );
 }
@@ -54,8 +55,14 @@ const styles = StyleSheet.create({
     borderRadius: Radius.md,
     padding: Spacing.lg - 1,
   },
+  cardDisabled: {
+    backgroundColor: Colors.backgroundAlt,
+    borderColor: Colors.backgroundMuted,
+  },
   logo: { width: 40, height: 40, borderRadius: Radius.sm },
+  logoDisabled: { opacity: 0.4 },
   initials: { alignItems: 'center', justifyContent: 'center' },
   body: { flex: 1, gap: 2 },
   name: { fontSize: 14 },
+  textDisabled: { color: Colors.textDisabled },
 });

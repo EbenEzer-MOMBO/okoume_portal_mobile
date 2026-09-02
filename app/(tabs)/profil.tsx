@@ -1,204 +1,230 @@
-import { useAuth, useClerk, useUser } from '@clerk/expo';
-import { BlurView } from 'expo-blur';
-import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { router } from "expo-router";
+import { useEffect, useState } from "react";
+import { Linking, Pressable, StyleSheet, View } from "react-native";
 
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { Dialog } from '@/components/ui/dialog';
-import { Divider } from '@/components/ui/divider';
-import { PhoneNumberField } from '@/components/ui/phone-number-field';
-import { Screen } from '@/components/ui/screen';
-import { ScreenScroll } from '@/components/ui/screen-scroll';
-import { SectionTitle } from '@/components/ui/section-title';
-import { SummaryRow } from '@/components/ui/summary-row';
-import { Text } from '@/components/ui/text';
-import { TextButton } from '@/components/ui/text-button';
-import { Toggle } from '@/components/ui/toggle';
-import { Colors, Radius, Spacing } from '@/constants/theme';
-import { clearGuestToken, decodeGuestEmail, getGuestToken } from '@/lib/auth/guest-session';
-import { isValidPhone } from '@/lib/phone';
-import { useGuestTokenPresent } from '@/lib/queries/auth';
-import { useAppStore, type NotificationPrefs } from '@/store/app-store';
+import { BottomSheet } from "@/components/ui/bottom-sheet";
+import { Button } from "@/components/ui/button";
+import { Dialog } from "@/components/ui/dialog";
+import { Icon } from "@/components/ui/icon";
+import { Screen } from "@/components/ui/screen";
+import { ScreenScroll } from "@/components/ui/screen-scroll";
+import { Text } from "@/components/ui/text";
+import { TextInputField } from "@/components/ui/text-input-field";
+import { Colors, Radius, Spacing } from "@/constants/theme";
+import {
+  clearGuestToken,
+  decodeGuestEmail,
+  getGuestToken,
+  setGuestProfile,
+} from "@/lib/auth/guest-session";
+import { useGuestProfile, useGuestTokenPresent } from "@/lib/queries/auth";
 
-const PREFS: { key: keyof NotificationPrefs; label: string }[] = [
-  { key: 'push', label: 'Notifications push' },
-  { key: 'email', label: 'Emails de confirmation' },
-  { key: 'promos', label: 'Offres et promotions' },
-];
-
-function initialsOf(name: string | null | undefined, email: string | undefined): string {
-  if (name) {
-    const parts = name.trim().split(/\s+/);
-    return parts
-      .slice(0, 2)
-      .map((p) => p[0]?.toUpperCase())
-      .join('');
+function initialsOf(prenom?: string, nom?: string, email?: string): string {
+  if (prenom || nom) {
+    const p = prenom?.[0]?.toUpperCase() ?? "";
+    const n = nom?.[0]?.toUpperCase() ?? "";
+    return `${p}${n}` || "?";
   }
-  return email?.[0]?.toUpperCase() ?? '?';
+  return email?.[0]?.toUpperCase() ?? "?";
 }
 
 export default function ProfilScreen() {
-  const { state, actions } = useAppStore();
-  const { user, isSignedIn } = useUser();
-  const { isSignedIn: sessionSignedIn } = useAuth();
-  const { signOut } = useClerk();
   const hasGuestToken = useGuestTokenPresent();
+  const profile = useGuestProfile();
   const [logoutOpen, setLogoutOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [savedSuccess, setSavedSuccess] = useState(false);
 
-  const storedPhone =
-    user?.primaryPhoneNumber?.phoneNumber ?? (user?.unsafeMetadata?.phone as string | undefined) ?? '';
-  const [phone, setPhone] = useState(storedPhone);
-  const [phoneError, setPhoneError] = useState('');
-  const [saveError, setSaveError] = useState('');
-  const [saving, setSaving] = useState(false);
+  const guestEmail = hasGuestToken
+    ? decodeGuestEmail(getGuestToken() ?? "")
+    : null;
+
+  // Formulaire de profil modifiable
+  const [prenom, setPrenom] = useState(profile?.prenom ?? "");
+  const [nom, setNom] = useState(profile?.nom ?? "");
+  const [telephone, setTelephone] = useState(profile?.telephone ?? "");
+  const [email, setEmail] = useState(profile?.email ?? guestEmail ?? "");
 
   useEffect(() => {
-    setPhone(storedPhone);
-  }, [storedPhone]);
-
-  const fullName = [user?.firstName, user?.lastName].filter(Boolean).join(' ') || null;
-  const guestEmail = hasGuestToken ? decodeGuestEmail(getGuestToken() ?? '') : null;
-  const email = user?.primaryEmailAddress?.emailAddress ?? guestEmail ?? undefined;
-  const country = user?.unsafeMetadata?.country as string | undefined;
-  const hasSession = Boolean(isSignedIn || sessionSignedIn || hasGuestToken);
-
-  const savePhone = async () => {
-    if (!user) return;
-    if (!isValidPhone(phone)) {
-      setPhoneError('Indiquez un numéro valide pour le pays choisi.');
-      return;
+    if (profile) {
+      setPrenom(profile.prenom ?? "");
+      setNom(profile.nom ?? "");
+      setTelephone(profile.telephone ?? "");
+      setEmail(profile.email ?? guestEmail ?? "");
+    } else if (guestEmail) {
+      setEmail(guestEmail);
     }
-    setPhoneError('');
-    setSaveError('');
-    setSaving(true);
-    try {
-      await user.update({
-        unsafeMetadata: { ...user.unsafeMetadata, phone },
-      });
-    } catch {
-      setSaveError('Impossible d’enregistrer le numéro.');
-    } finally {
-      setSaving(false);
-    }
-  };
+  }, [profile, guestEmail]);
 
   const confirmLogout = async () => {
     setLogoutOpen(false);
-    if (isSignedIn || sessionSignedIn) await signOut();
     if (hasGuestToken) await clearGuestToken();
-    router.replace('/(tabs)');
+    router.replace('/auth/otp');
   };
+
+  const saveProfile = async () => {
+    await setGuestProfile({
+      prenom: prenom.trim(),
+      nom: nom.trim(),
+      telephone: telephone.trim(),
+      email: email.trim(),
+    });
+    setSavedSuccess(true);
+    setEditOpen(false);
+    setTimeout(() => setSavedSuccess(false), 3000);
+  };
+
+  const openUrl = (url: string) => {
+    Linking.openURL(url).catch((err) =>
+      console.error("Erreur ouverture lien:", err),
+    );
+  };
+
+  const fullName = profile ? `${profile.prenom} ${profile.nom}`.trim() : null;
 
   return (
     <Screen tone="alt">
-      <ScreenScroll withTabBar paddingTop={Spacing['2xl']}>
-        <Text variant="title">Profil</Text>
+      <ScreenScroll withTabBar paddingTop={Spacing["2xl"]}>
+        <Text variant="title">Mon Profil</Text>
 
+        {/* Entête d'identité */}
         <View style={styles.identity}>
           <View style={styles.avatar}>
             <Text variant="heading" tone="inverse">
-              {initialsOf(fullName, email)}
+              {initialsOf(prenom, nom, email)}
             </Text>
           </View>
           <View style={styles.identityBody}>
-            <Text variant="cardTitle">{fullName ?? email ?? 'Client Ya Hôtel'}</Text>
+            <Text variant="cardTitle">
+              {fullName || email || "Client Ya Hôtel"}
+            </Text>
+            {telephone ? (
+              <Text variant="bodySm" tone="muted">
+                {telephone}
+              </Text>
+            ) : null}
             {email ? (
               <Text variant="bodySm" tone="muted">
                 {email}
               </Text>
-            ) : (
-              <Text variant="bodySm" tone="muted">
-                Réservez sans compte, ou connectez-vous pour retrouver vos séjours.
-              </Text>
-            )}
+            ) : null}
           </View>
         </View>
 
-        <SectionTitle spacingTop={26}>Coordonnées</SectionTitle>
-        <Card padded={false}>
-          <View style={styles.phoneBlock}>
-            <PhoneNumberField
-              label="Téléphone"
-              value={phone}
-              onChange={(value) => {
-                setPhone(value);
-                setPhoneError('');
-                setSaveError('');
-              }}
-              error={phoneError}
-            />
-            {saveError ? (
-              <Text variant="caption" tone="destructive">
-                {saveError}
-              </Text>
-            ) : null}
+        {/* Informations & conditions — un seul conteneur */}
+        <View style={styles.section}>
+          <Text variant="caption" tone="muted" style={styles.sectionHeader}>
+            INFORMATIONS & CONDITIONS
+          </Text>
+
+          <View style={styles.menuContainer}>
+            {/* Ligne "Modifier mes informations" — ouvre le bottom sheet */}
+            <Pressable
+              style={[styles.menuRow, styles.rowBorder]}
+              onPress={() => setEditOpen(true)}>
+              <View style={styles.menuRowLeft}>
+                <Text variant="bodySm" style={styles.menuLabel}>
+                  Modifier mes informations
+                </Text>
+              </View>
+              <Icon name="chevron" size={14} color={Colors.textMuted} />
+            </Pressable>
+
+            {/* Conditions d'utilisation */}
+            <Pressable
+              style={[styles.menuRow, styles.rowBorder]}
+              onPress={() =>
+                openUrl("https://yahotel.ga/conditions-d-utilisation")
+              }>
+              <View style={styles.menuRowLeft}>
+                <Text variant="bodySm" style={styles.menuLabel}>
+                  Conditions d'utilisation
+                </Text>
+              </View>
+              <Icon name="chevron" size={14} color={Colors.textMuted} />
+            </Pressable>
+
+            {/* Politique de confidentialité */}
+            <Pressable
+              style={styles.menuRow}
+              onPress={() =>
+                openUrl("https://yahotel.ga/politique-de-confidentialite")
+              }>
+              <View style={styles.menuRowLeft}>
+                <Text variant="bodySm" style={styles.menuLabel}>
+                  Politique de confidentialité
+                </Text>
+              </View>
+              <Icon name="chevron" size={14} color={Colors.textMuted} />
+            </Pressable>
+          </View>
+        </View>
+
+        {/* Bouton Se déconnecter — dans le flux normal, en bas de page */}
+        {hasGuestToken ? (
+          <View style={styles.section}>
             <Button
-              label="Enregistrer le numéro"
-              variant="secondary"
-              loading={saving}
-              disabled={!user}
-              onPress={savePhone}
+              label="Se déconnecter"
+              variant="primary"
+              onPress={() => setLogoutOpen(true)}
+              style={styles.logoutSquareButton}
             />
           </View>
-          <Divider />
-          <SummaryRow label="Pays" value={country ?? 'Non renseigné'} style={styles.row} />
-        </Card>
-
-        <SectionTitle spacingTop={26}>Préférences de notification</SectionTitle>
-        <Card padded={false}>
-          {PREFS.map((pref, index) => (
-            <View key={pref.key}>
-              {index > 0 ? <Divider /> : null}
-              <View style={[styles.row, styles.prefRow]}>
-                <Text variant="body">{pref.label}</Text>
-                <Toggle
-                  value={state.prefs[pref.key]}
-                  accessibilityLabel={pref.label}
-                  onValueChange={() => actions.togglePref(pref.key)}
-                />
-              </View>
-            </View>
-          ))}
-        </Card>
-
-        {hasSession ? (
-          <TextButton
-            label="Se déconnecter"
-            tone="destructive"
-            onPress={() => setLogoutOpen(true)}
-            style={styles.logout}
-          />
         ) : null}
+
+        <View style={{ height: 40 }} />
       </ScreenScroll>
 
-      {!hasSession ? (
-        <BlurView intensity={30} tint="light" style={StyleSheet.absoluteFillObject}>
-          <View style={styles.gateOverlay}>
-            <Card style={styles.gateCard} elevated>
-              <Text variant="cardTitle" style={styles.gateTitle}>
-                Connectez-vous
-              </Text>
-              <Text variant="bodySm" tone="muted" style={styles.gateHint}>
-                Créez un compte ou connectez-vous pour gérer votre profil et retrouver vos séjours.
-              </Text>
-              <Button label="Se connecter" onPress={() => router.push('/login')} style={styles.gateButton} />
-              <Button
-                label="Continuer avec mon e-mail"
-                variant="outline"
-                onPress={() => router.push('/auth/otp')}
-                style={styles.gateButton}
-              />
-            </Card>
-          </View>
-        </BlurView>
-      ) : null}
+      {/* Bottom sheet — modification des informations */}
+      <BottomSheet
+        visible={editOpen}
+        onClose={() => setEditOpen(false)}
+        title="Modifier mes informations">
+        <View style={styles.editForm}>
+          <TextInputField
+            label="Prénom"
+            value={prenom}
+            onChangeText={setPrenom}
+            placeholder="Ex: Jean"
+            autoCapitalize="words"
+          />
+          <TextInputField
+            label="Nom"
+            value={nom}
+            onChangeText={setNom}
+            placeholder="Ex: OKOUMBA"
+            autoCapitalize="characters"
+          />
+          <TextInputField
+            label="Numéro de téléphone"
+            value={telephone}
+            onChangeText={setTelephone}
+            placeholder="Ex: 074 00 00 00"
+            keyboardType="phone-pad"
+          />
+          <TextInputField
+            label="Adresse e-mail"
+            value={email}
+            onChangeText={setEmail}
+            placeholder="vous@exemple.com"
+            keyboardType="email-address"
+            autoCapitalize="none"
+          />
+          <Button
+            label={
+              savedSuccess ? "Modifications enregistrées !" : "Enregistrer"
+            }
+            onPress={saveProfile}
+            variant={savedSuccess ? "outline" : "primary"}
+            style={{ marginTop: Spacing.xs }}
+          />
+        </View>
+      </BottomSheet>
 
       <Dialog
         visible={logoutOpen}
         title="Se déconnecter ?"
-        description="Votre compte sera oublié sur cet appareil."
+        description="Votre profil sera oublié sur cet appareil."
         confirmLabel="Se déconnecter"
         tone="destructive"
         onConfirm={confirmLogout}
@@ -209,23 +235,62 @@ export default function ProfilScreen() {
 }
 
 const styles = StyleSheet.create({
-  identity: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md + 2, marginTop: Spacing.xl },
+  identity: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.md + 2,
+    marginTop: Spacing.lg,
+  },
   avatar: {
     width: 56,
     height: 56,
     borderRadius: Radius.pill,
     backgroundColor: Colors.ink,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
-  identityBody: { flex: 1, gap: 3 },
-  phoneBlock: { padding: Spacing.lg - 1, gap: Spacing.md },
-  row: { paddingVertical: Spacing.md + 2, paddingHorizontal: Spacing.lg - 1 },
-  prefRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  logout: { marginTop: 28 },
-  gateOverlay: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: Spacing.xl },
-  gateCard: { width: '100%', maxWidth: 360, alignItems: 'center', gap: Spacing.md },
-  gateTitle: { textAlign: 'center' },
-  gateHint: { textAlign: 'center' },
-  gateButton: { width: '100%' },
+  identityBody: { flex: 1, gap: 2 },
+  section: {
+    marginTop: Spacing.xl,
+    gap: Spacing.xs,
+  },
+  sectionHeader: {
+    letterSpacing: 0.8,
+    fontWeight: "600",
+    fontSize: 11,
+    marginBottom: 4,
+  },
+  menuContainer: {
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    paddingHorizontal: Spacing.md,
+  },
+  menuRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: Spacing.md,
+  },
+  menuRowLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm + 2,
+  },
+  menuLabel: {
+    fontSize: 13,
+    color: Colors.ink,
+  },
+  rowBorder: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.border,
+  },
+  editForm: {
+    gap: Spacing.sm,
+    paddingBottom: Spacing.lg,
+  },
+  logoutSquareButton: {
+    borderRadius: 0,
+    backgroundColor: Colors.ink,
+  },
 });

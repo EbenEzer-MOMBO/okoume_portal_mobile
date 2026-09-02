@@ -40,6 +40,7 @@ export type PaymentMethod = {
   logo?: ImageSourcePropType;
   /** Ce mode exige un numéro de téléphone (mobile money). */
   requiresPhone: boolean;
+  comingSoon?: boolean;
 };
 
 export const PAYMENT_METHODS: PaymentMethod[] = [
@@ -61,7 +62,16 @@ export const PAYMENT_METHODS: PaymentMethod[] = [
     logo: require('@/assets/images/airtel_money.png'),
     requiresPhone: true,
   },
-  { id: 'clickpay', name: 'ClickPay', hint: 'Redirection sécurisée', initials: 'CP', color: '#57534E', requiresPhone: false },
+  {
+    id: 'clickpay',
+    name: 'Clikpay',
+    hint: 'Redirection sécurisée',
+    initials: 'CP',
+    color: '#57534E',
+    logo: require('@/assets/images/clikpay-logo.png'),
+    requiresPhone: false,
+    comingSoon: true,
+  },
   {
     id: 'carte_bancaire',
     name: 'Carte bancaire',
@@ -70,14 +80,15 @@ export const PAYMENT_METHODS: PaymentMethod[] = [
     color: '#3F3B37',
     logo: require('@/assets/images/visa.png'),
     requiresPhone: false,
+    comingSoon: true,
   },
 ];
 
 export const HOTEL = {
   name: 'Ya Hôtel',
-  city: 'Libreville',
-  address: 'Boulevard du Bord de Mer, Libreville',
-  phone: '+241 11 44 22 08',
+  city: 'Koumameyong',
+  address: 'Koumameyong, Gabon',
+  phone: '+241 060 27 90 94',
   checkIn: 'dès 14 h',
   checkOut: 'avant 12 h',
   cancellationNotice: "Annulation gratuite jusqu'à 48 h avant l'arrivée.",

@@ -7,11 +7,10 @@ export type CardProps = ViewProps & {
   tone?: 'surface' | 'dark';
   /** `false` : pas de padding interne (listes de lignes séparées). */
   padded?: boolean;
-  elevated?: boolean;
   style?: StyleProp<ViewStyle>;
 };
 
-export function Card({ tone = 'surface', padded = true, elevated = false, style, ...props }: CardProps) {
+export function Card({ tone = 'surface', padded = true, style, ...props }: CardProps) {
   return (
     <View
       {...props}
@@ -19,7 +18,6 @@ export function Card({ tone = 'surface', padded = true, elevated = false, style,
         styles.base,
         tone === 'dark' ? styles.dark : styles.surface,
         padded && styles.padded,
-        elevated && Shadow.card,
         style,
       ]}
     />

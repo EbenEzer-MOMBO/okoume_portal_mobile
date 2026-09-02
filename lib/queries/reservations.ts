@@ -1,4 +1,3 @@
-import { useAuth } from '@clerk/expo';
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { ApiError } from '@/lib/api/client';
@@ -31,18 +30,18 @@ export function useActiveStay(options: { poll?: boolean } = {}) {
   return { reference: activeReference, query: useReservation(activeReference, options) };
 }
 
-/** Historique : session (Clerk ou invité OTP) si possible, sinon références locales. */
+/** Historique : session invité OTP si possible, sinon références locales. */
 export function useTrackedReservations() {
   const { state } = useAppStore();
-  const { isSignedIn } = useAuth();
   const hasGuestToken = useGuestTokenPresent();
-  const hasSession = Boolean(isSignedIn || hasGuestToken);
+  const hasSession = hasGuestToken;
 
   const mine = useQuery({
-    queryKey: ['reservations', 'mine', isSignedIn, hasGuestToken],
+    queryKey: ['reservations', 'mine', hasGuestToken],
     queryFn: getMyReservations,
     enabled: hasSession,
     retry: false,
+    refetchInterval: 10_000,
   });
 
   const local = useQueries({
@@ -50,19 +49,34 @@ export function useTrackedReservations() {
       queryKey: ['reservation', reference],
       queryFn: () => getReservationByReference(reference),
       enabled: !mine.data,
+      refetchInterval: 10_000,
     })),
   });
+
+  const refetch = () => {
+    if (hasSession) {
+      mine.refetch();
+    } else {
+      local.forEach((q) => q.refetch());
+    }
+  };
+
+  const isRefetching = hasSession ? mine.isRefetching : local.some((q) => q.isRefetching);
 
   if (mine.data) {
     return {
       isLoading: mine.isLoading,
+      isRefetching,
       reservations: mine.data,
+      refetch,
     };
   }
 
   return {
     isLoading: local.length > 0 && local.some((q) => q.isLoading),
+    isRefetching,
     reservations: local.map((q) => q.data).filter((r) => !!r),
+    refetch,
   };
 }
 

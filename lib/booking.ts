@@ -1,16 +1,14 @@
-import { DEPOSIT_RATE, STAY_TAX } from '@/constants/hotel';
 import { countNights } from '@/lib/format';
 
-export type PaymentOptionId = 'acompte' | 'integral' | 'arrivee';
+export type PaymentOptionId = 'integral';
 
 export type Quote = {
   nights: number;
   subtotal: number;
-  tax: number;
   total: number;
-  /** Montant à régler immédiatement selon la modalité choisie. */
+  /** Montant à régler : intégralité du séjour */
   due: number;
-  /** Reste à régler sur place. */
+  /** Reste à régler sur place */
   balance: number;
 };
 
@@ -18,15 +16,13 @@ export function computeQuote(
   nightlyPrice: number,
   arrival: number,
   departure: number,
-  paymentOption: PaymentOptionId | null
+  _paymentOption?: unknown
 ): Quote {
   const nights = countNights(arrival, departure);
   const subtotal = nightlyPrice * nights;
-  const total = subtotal + STAY_TAX;
-  const due =
-    paymentOption === 'integral' ? total : paymentOption === 'acompte' ? Math.round(total * DEPOSIT_RATE) : 0;
+  const total = subtotal;
 
-  return { nights, subtotal, tax: STAY_TAX, total, due, balance: total - due };
+  return { nights, subtotal, total, due: total, balance: 0 };
 }
 
 export const PAYMENT_OPTIONS: {
@@ -35,17 +31,6 @@ export const PAYMENT_OPTIONS: {
   hint: string;
   amountOf: (quote: Quote) => number;
 }[] = [
-  {
-    id: 'acompte',
-    label: 'Acompte de 30 %',
-    hint: "Solde réglé à l'arrivée",
-    amountOf: (q) => Math.round(q.total * DEPOSIT_RATE),
-  },
-  { id: 'integral', label: 'Solde intégral', hint: 'Tout est réglé maintenant', amountOf: (q) => q.total },
-  {
-    id: 'arrivee',
-    label: "Paiement à l'arrivée",
-    hint: "Aucun montant prélevé aujourd'hui",
-    amountOf: () => 0,
-  },
+  { id: 'integral', label: 'Règlement intégral', hint: 'Paiement total du séjour', amountOf: (q) => q.total },
 ];
+

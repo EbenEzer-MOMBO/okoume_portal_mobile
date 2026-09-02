@@ -1,4 +1,4 @@
-import { useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 
 import { Badge } from '@/components/ui/badge';
@@ -13,14 +13,17 @@ import { SummaryRow } from '@/components/ui/summary-row';
 import { Text } from '@/components/ui/text';
 import { useToast } from '@/components/ui/toast';
 import { Spacing } from '@/constants/theme';
-import { dayFromISODate, formatDay } from '@/lib/format';
+import { dayFromISODate, formatAmount, formatDay } from '@/lib/format';
 import { useReservation } from '@/lib/queries/reservations';
+import { useSyncStatus } from '@/lib/queries/sync';
 import { getStatutBadge } from '@/lib/stay';
 
 export default function ReservationPasseeScreen() {
   const { id: reference } = useLocalSearchParams<{ id: string }>();
   const showToast = useToast();
   const query = useReservation(reference ?? null);
+  const syncStatus = useSyncStatus();
+  const isServerOnline = syncStatus.data?.isOnline ?? false;
   const reservation = query.data;
 
   return (
@@ -53,15 +56,30 @@ export default function ReservationPasseeScreen() {
               <SummaryRow label="N° de réservation" value={reservation.reference} />
               <Divider />
               <SummaryRow label="Client" value={reservation.clientNom} />
+              {reservation.montantTotal ? (
+                <>
+                  <Divider />
+                  <SummaryRow label="Montant total" value={formatAmount(reservation.montantTotal)} />
+                </>
+              ) : null}
             </Card>
 
-            <Button
-              label="Télécharger la facture"
-              variant="outline"
-              icon="download"
-              style={styles.invoice}
-              onPress={() => showToast('Facture bientôt disponible')}
-            />
+            {reservation.statut === 'en_attente' ? (
+              <Button
+                label={isServerOnline ? "Procéder au paiement en ligne" : "Paiement indisponible"}
+                disabled={!isServerOnline}
+                style={{ marginTop: Spacing.xl }}
+                onPress={() => router.push({ pathname: '/paiement', params: { reference: reservation.reference } })}
+              />
+            ) : (
+              <Button
+                label="Télécharger la facture"
+                variant="outline"
+                icon="download"
+                style={styles.invoice}
+                onPress={() => showToast('Facture bientôt disponible')}
+              />
+            )}
 
             <Text variant="caption" tone="subtle" style={styles.notice}>
               Cette réservation est en lecture seule et ne peut plus être modifiée.

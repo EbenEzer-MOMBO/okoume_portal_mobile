@@ -14,10 +14,10 @@ export const Colors = {
   /** Brun okoumé — accent */
   accent: '#8B7355',
 
-  /** Fond principal (crème) */
-  background: '#F7F4EF',
-  /** Fond secondaire (crème clair) */
-  backgroundAlt: '#FAF9F6',
+  /** Fond principal (blanc) */
+  background: '#FFFFFF',
+  /** Fond secondaire (blanc) */
+  backgroundAlt: '#FFFFFF',
   /** Fond neutre appuyé (pistes de segmented control, canvas) */
   backgroundMuted: '#EDE9E2',
   /** Cartes */
@@ -34,6 +34,7 @@ export const Colors = {
   textDisabled: '#CFC9C0',
 
   destructive: '#EF4444',
+  success: '#10B981',
 
   /** Badges neutres (statut « Terminée ») */
   badgeMutedBg: '#F4F4F5',
@@ -57,12 +58,12 @@ export const Colors = {
 } as const;
 
 export const FontFamily = {
-  serif: 'Fraunces_600SemiBold',
-  serifBold: 'Fraunces_700Bold',
+  serif: 'Fraunces_400Regular',
+  serifBold: 'Fraunces_600SemiBold',
   serifItalic: 'Fraunces_600SemiBold_Italic',
   sans: 'Inter_400Regular',
   sansMedium: 'Inter_500Medium',
-  sansSemiBold: 'Inter_600SemiBold',
+  sansSemiBold: 'Inter_500Medium',
   mono: 'IBMPlexMono_400Regular',
 } as const;
 
@@ -77,10 +78,10 @@ export const Spacing = {
 } as const;
 
 export const Radius = {
-  sm: 6,
-  md: 8,
-  lg: 12,
-  sheet: 16,
+  sm: 0,
+  md: 0,
+  lg: 0,
+  sheet: 0,
   pill: 999,
 } as const;
 

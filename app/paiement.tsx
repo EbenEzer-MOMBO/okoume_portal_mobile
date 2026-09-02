@@ -1,5 +1,4 @@
-import { useUser } from '@clerk/expo';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
@@ -13,6 +12,7 @@ import { Text } from '@/components/ui/text';
 import { TextInputField } from '@/components/ui/text-input-field';
 import { PAYMENT_METHODS } from '@/constants/hotel';
 import { Colors, Spacing } from '@/constants/theme';
+import { apiRequest } from '@/lib/api/client';
 import { computeQuote } from '@/lib/booking';
 import { formatAmount } from '@/lib/format';
 import { useGuestTokenPresent } from '@/lib/queries/auth';
@@ -25,21 +25,28 @@ type Step = 'choose' | 'phone' | 'waiting';
 
 export default function PaiementScreen() {
   const { state, activeReference } = useAppStore();
+  const { reference: paramReference } = useLocalSearchParams<{ reference?: string }>();
+  const effectiveReference = paramReference || activeReference;
+
   const room = state.selectedRoom;
-  const quote = room ? computeQuote(room.tarif_nuit, state.search.arrival, state.search.departure, state.paymentOption) : null;
+  const quote = room ? computeQuote(room.tarif_nuit, state.search.arrival, state.search.departure) : null;
 
   const [step, setStep] = useState<Step>('choose');
   const [methodId, setMethodId] = useState<(typeof PAYMENT_METHODS)[number]['id'] | null>(null);
   const [phone, setPhone] = useState('');
   const [phoneError, setPhoneError] = useState('');
+  const [pollingStatus, setPollingStatus] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
 
   const initiatePayment = useInitiatePayment();
-  const reservationQuery = useReservation(step === 'waiting' ? activeReference : null, { poll: true });
+  const reservationQuery = useReservation(effectiveReference, { poll: step === 'waiting' });
   const statut = reservationQuery.data?.statut;
   const syncStatus = useSyncStatus();
-  const { isLoaded: isUserLoaded, isSignedIn } = useUser();
   const hasGuestToken = useGuestTokenPresent();
-  const hasAccess = isSignedIn || hasGuestToken;
+
+  const montantTotal = (quote?.total && quote.total > 0)
+    ? quote.total
+    : (reservationQuery.data?.montantTotal ? Number(reservationQuery.data.montantTotal) : 0);
 
   useEffect(() => {
     if (step === 'waiting' && statut && statut !== 'en_attente') {
@@ -47,14 +54,81 @@ export default function PaiementScreen() {
     }
   }, [step, statut]);
 
+  const handleBack = () => {
+    if (step === 'phone') {
+      setStep('choose');
+      setMethodId(null);
+      setPhone('');
+      setPhoneError('');
+      setErrorMsg('');
+      return;
+    }
+    if (step === 'waiting') {
+      setStep('choose');
+      setErrorMsg('');
+      return;
+    }
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/(tabs)/reservations');
+    }
+  };
+
   const selectedMethod = PAYMENT_METHODS.find((m) => m.id === methodId);
 
-  const runInitiate = (telephonePaiement: string) => {
-    if (!activeReference || !quote) return;
-    initiatePayment.mutate(
-      { reference: activeReference, montant: quote.due, modePaiement: methodId!, telephonePaiement },
-      { onSuccess: () => setStep('waiting') }
-    );
+  const runInitiate = async (telephonePaiement: string) => {
+    if (!effectiveReference || montantTotal <= 0 || !methodId) return;
+    setPhoneError('');
+    setErrorMsg('');
+    setPollingStatus('Initiation du paiement...');
+
+    try {
+      const result = await initiatePayment.mutateAsync({
+        reference: effectiveReference,
+        montant: montantTotal,
+        modePaiement: methodId,
+        telephonePaiement,
+      });
+
+      if (result.transactionId) {
+        setStep('waiting');
+        setPollingStatus('Attente validation USSD...');
+
+        let attempts = 0;
+        let paid = false;
+        while (attempts < 60) {
+          attempts++;
+          await new Promise((r) => setTimeout(r, 2000));
+          try {
+            const s = await apiRequest<{ isCompleted: boolean; isSuccess: boolean; error?: string; message?: string }>(
+              `/api/paiements/status/${result.transactionId}`
+            );
+            if (s.isCompleted) {
+              if (s.isSuccess) {
+                paid = true;
+                break;
+              } else {
+                throw new Error(s.error || s.message || 'Paiement échoué ou annulé.');
+              }
+            }
+          } catch (e: any) {
+            if (e.message?.includes('échoué') || e.message?.includes('insuffisant') || e.message?.includes('annulé')) {
+              throw e;
+            }
+          }
+        }
+
+        if (!paid) throw new Error('Délai dépassé. Veuillez vérifier votre téléphone et réessayer.');
+      }
+
+      router.replace('/confirmation');
+    } catch (e: any) {
+      setStep('phone');
+      setErrorMsg(e.message || 'Échec de l’initiation du paiement.');
+    } finally {
+      setPollingStatus('');
+    }
   };
 
   const chooseMethod = (id: (typeof PAYMENT_METHODS)[number]['id']) => {
@@ -63,7 +137,7 @@ export default function PaiementScreen() {
     if (method?.requiresPhone) {
       setStep('phone');
     } else {
-      runInitiate('');
+      void runInitiate('');
     }
   };
 
@@ -73,33 +147,78 @@ export default function PaiementScreen() {
       return;
     }
     setPhoneError('');
-    runInitiate(phone.trim());
+    void runInitiate(phone.trim());
   };
 
-  if (!room || !activeReference || !quote) {
+  if (reservationQuery.isLoading && !room) {
     return (
       <Screen>
-        <ScreenHeader title="Paiement" />
-        <View style={styles.missing}>
-          <Text variant="body" tone="muted" style={styles.missingText}>
-            Aucune réservation en cours. Relancez une recherche.
+        <ScreenHeader title="Paiement" onBack={handleBack} />
+        <View style={styles.checkingNetwork}>
+          <ActivityIndicator size="large" color={Colors.accent} />
+          <Text variant="bodySm" tone="muted" style={styles.checkingNetworkLabel}>
+            Chargement de votre réservation…
           </Text>
-          <Button label="Retour à l'accueil" fullWidth={false} onPress={() => router.replace('/(tabs)')} />
         </View>
       </Screen>
     );
   }
 
+  if (reservationQuery.isError && !room) {
+    return (
+      <Screen>
+        <ScreenHeader title="Paiement" onBack={handleBack} />
+        <View style={styles.missing}>
+          <Text variant="body" tone="destructive" style={styles.missingText}>
+            Impossible de charger la réservation {effectiveReference}.
+          </Text>
+          <Button label="Réessayer" fullWidth={false} onPress={() => reservationQuery.refetch()} />
+        </View>
+      </Screen>
+    );
+  }
+
+  if (!effectiveReference || (!room && !reservationQuery.data)) {
+    return (
+      <Screen>
+        <ScreenHeader title="Paiement" onBack={handleBack} />
+        <View style={styles.missing}>
+          <Text variant="body" tone="muted" style={styles.missingText}>
+            Aucune réservation en cours. Relancez une recherche.
+          </Text>
+          <Button label="Retour aux réservations" fullWidth={false} onPress={() => router.replace('/(tabs)/reservations')} />
+        </View>
+      </Screen>
+    );
+  }
+
+  const roomTitle = room?.type_chambre?.replace(/_/g, ' ') 
+    ?? reservationQuery.data?.chambre?.type_chambre?.replace(/_/g, ' ') 
+    ?? 'Chambre';
+  const roomNumber = room?.numero ?? reservationQuery.data?.chambre?.numero;
+
+  const isPaymentActive = initiatePayment.isPending || step === 'waiting';
+
   return (
     <Screen>
-      <ScreenHeader title="Paiement" />
+      <ScreenHeader title="Paiement" onBack={isPaymentActive ? undefined : handleBack} />
 
-      <ScreenScroll paddingTop={Spacing['2xl']}>
+      <ScreenScroll paddingTop={Spacing.xl}>
+        {/* Encart récapitulatif de la chambre */}
+        <View style={styles.reservationSummary}>
+          <Text variant="cardTitle" style={styles.summaryRoomTitle}>
+            {roomTitle}{roomNumber ? ` — N° ${roomNumber}` : ''}
+          </Text>
+          <Text variant="caption" tone="muted" style={styles.summaryReference}>
+            RÉF. {effectiveReference}
+          </Text>
+        </View>
+
         <Text variant="heading" tone="muted" style={styles.amountLabel}>
           Montant à régler
         </Text>
         <Text variant="price" style={styles.amount}>
-          {formatAmount(quote.due)}
+          {formatAmount(montantTotal)}
         </Text>
 
         {step === 'choose' && syncStatus.isLoading ? (
@@ -111,36 +230,30 @@ export default function PaiementScreen() {
           </View>
         ) : null}
 
-        {step === 'choose' && !syncStatus.isLoading && syncStatus.data?.isOnline && isUserLoaded && !hasAccess ? (
+        {step === 'choose' && !syncStatus.isLoading && syncStatus.data?.isOnline && !hasGuestToken ? (
           <View style={styles.unavailable}>
             <Text variant="bodyLg" style={styles.unavailableTitle}>
-              Connexion requise
+              Identification requise
             </Text>
             <Text variant="bodySm" tone="muted" style={styles.unavailableHint}>
-              Le paiement en ligne nécessite de vous identifier. Connectez-vous, continuez avec
-              votre e-mail, ou réglez votre séjour à l&apos;arrivée.
+              Le paiement en ligne nécessite de vous identifier via votre e-mail,
+              ou réglez votre séjour à l&apos;arrivée.
             </Text>
             <Button
-              label="Se connecter"
-              onPress={() => router.push('/login')}
-              style={styles.confirmButton}
-            />
-            <Button
               label="Continuer avec mon e-mail"
-              variant="outline"
               onPress={() => router.push('/auth/otp')}
               style={styles.confirmButton}
             />
             <Button
               label="Payer à l'arrivée"
               variant="outline"
-              onPress={() => router.replace('/(tabs)/sejour')}
+              onPress={() => router.replace('/(tabs)/reservations')}
               style={styles.confirmButton}
             />
           </View>
         ) : null}
 
-        {step === 'choose' && !syncStatus.isLoading && syncStatus.data?.isOnline && hasAccess ? (
+        {step === 'choose' && !syncStatus.isLoading && syncStatus.data?.isOnline && hasGuestToken ? (
           <>
             <Text variant="sectionTitle" style={styles.methodsLabel}>
               Choisissez un mode de paiement
@@ -173,11 +286,12 @@ export default function PaiementScreen() {
               label="Revérifier la connexion"
               variant="outline"
               onPress={() => syncStatus.refetch()}
+              loading={syncStatus.isRefetching}
               style={styles.confirmButton}
             />
             <Button
               label="Voir ma réservation"
-              onPress={() => router.replace('/(tabs)/sejour')}
+              onPress={() => router.replace('/(tabs)/reservations')}
               style={styles.confirmButton}
             />
           </View>
@@ -194,20 +308,34 @@ export default function PaiementScreen() {
               onChangeText={(value) => {
                 setPhone(value);
                 setPhoneError('');
+                setErrorMsg('');
               }}
               placeholder="+241 6X XX XX XX"
               keyboardType="phone-pad"
+              editable={!initiatePayment.isPending}
               error={phoneError}
             />
             <Button
-              label="Confirmer"
+              label={initiatePayment.isPending ? (pollingStatus || 'Traitement du paiement...') : 'Confirmer'}
               onPress={confirmPhone}
               loading={initiatePayment.isPending}
+              disabled={initiatePayment.isPending}
               style={styles.confirmButton}
             />
-            {initiatePayment.isError ? (
+            
+            {/* Bouton "Changer de moyen de paiement" masqué une fois le paiement lancé */}
+            {!initiatePayment.isPending ? (
+              <Button
+                label="Changer de moyen de paiement"
+                variant="outline"
+                onPress={handleBack}
+                style={{ marginTop: Spacing.sm }}
+              />
+            ) : null}
+
+            {errorMsg ? (
               <Text variant="caption" tone="destructive" style={styles.error}>
-                {initiatePayment.error instanceof Error ? initiatePayment.error.message : 'Échec de l’initiation.'}
+                {errorMsg}
               </Text>
             ) : null}
           </View>
@@ -220,17 +348,13 @@ export default function PaiementScreen() {
               En attente de confirmation
             </Text>
             <Text variant="bodySm" tone="muted" style={styles.processingHint}>
-              {selectedMethod?.requiresPhone
-                ? 'Composez le code reçu sur votre téléphone pour valider le prélèvement.'
-                : 'Le paiement est en cours de traitement par la réception.'}
+              Composez le code reçu sur votre téléphone pour valider le prélèvement.
             </Text>
-            <Button
-              label="Continuer"
-              variant="outline"
-              fullWidth={false}
-              onPress={() => router.replace('/confirmation')}
-              style={styles.continueButton}
-            />
+            {pollingStatus ? (
+              <Text variant="caption" tone="muted" style={{ marginTop: 4 }}>
+                {pollingStatus}
+              </Text>
+            ) : null}
           </View>
         ) : null}
       </ScreenScroll>
@@ -252,11 +376,26 @@ const styles = StyleSheet.create({
   unavailableHint: { textAlign: 'center', marginBottom: Spacing.md },
   phoneStep: { marginTop: 4 },
   confirmButton: { marginTop: Spacing.lg },
-  error: { marginTop: Spacing.sm },
+  error: { marginTop: Spacing.md },
   processing: { alignItems: 'center', gap: Spacing.lg, paddingVertical: 70 },
   processingTitle: { fontWeight: '500' },
   processingHint: { textAlign: 'center', maxWidth: 250 },
-  continueButton: { marginTop: Spacing.sm },
   missing: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: Spacing.md, paddingHorizontal: Spacing.xl },
   missingText: { textAlign: 'center' },
+  reservationSummary: {
+    padding: Spacing.md,
+    backgroundColor: Colors.backgroundAlt,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    marginBottom: Spacing.lg,
+    gap: 4,
+  },
+  summaryRoomTitle: {
+    fontSize: 16,
+    textTransform: 'capitalize',
+  },
+  summaryReference: {
+    fontFamily: 'monospace',
+    letterSpacing: 0.5,
+  },
 });

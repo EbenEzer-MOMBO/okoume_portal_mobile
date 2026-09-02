@@ -10,6 +10,7 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
+      "bundleIdentifier": "com.yahotel.gytx",
       "infoPlist": {
         "NSAppTransportSecurity": {
           "NSAllowsArbitraryLoads": true,
@@ -18,6 +19,7 @@
       }
     },
     "android": {
+      "package": "com.yahotel.gytx",
       "usesCleartextTraffic": true,
       "adaptiveIcon": {
         "backgroundColor": "#F7F4EF",
@@ -48,6 +50,12 @@
       "typedRoutes": true,
       "reactCompiler": true
     },
-    "backgroundColor": "#F7F4EF"
+    "backgroundColor": "#F7F4EF",
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "682cbc4f-871f-48a0-b6c4-00d62b566be6"
+      }
+    }
   }
 }

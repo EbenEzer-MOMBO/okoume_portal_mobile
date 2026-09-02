@@ -7,7 +7,17 @@ export type ChambreDisponible = {
   tarif_nuit: number;
   capacite: number;
   amenites: string[];
+  /** URL principale de la première photo (compatibilité). */
   photo_url: string | null;
+  /** Galerie complète de photos. */
+  photos: string[];
+};
+
+/** Équipement avec icône image URL depuis /api/equipements */
+export type Equipement = {
+  id: number;
+  nom: string;
+  iconeUrl: string | null;
 };
 
 export type DisponibiliteResponse = {
@@ -34,12 +44,15 @@ export type DemandeReservationResponse = {
 };
 
 export type ReservationDetail = {
+  id: number;
   reference: string;
   statut: ReservationStatut;
   clientNom: string;
-  chambre: { numero: string; type_chambre: string };
+  chambre: { numero: string; type_chambre: string; photoUrl?: string | null };
   dateArrivee: string;
   dateDepart: string;
+  nombreNuits?: number;
+  montantTotal?: number;
 };
 
 export type MenuItem = {
@@ -50,6 +63,9 @@ export type MenuItem = {
   categorie?: string;
   disponible: boolean;
   photo_url?: string | null;
+  isPlatDuJour?: boolean;
+  outOfStock?: boolean;
+  stock?: number;
 };
 
 export type RoomServiceItemPayload = {
@@ -83,10 +99,20 @@ export type InitierPaiementResponse = {
   success: boolean;
   statut: 'en_attente';
   message: string;
+  transactionId?: string;
 };
 
 export type SyncStatusResponse = {
   isOnline: boolean;
+  lastSyncAt?: string | null;
+  counts?: {
+    reservations: number;
+    dossiers: number;
+    chambres: number;
+    stocks: number;
+    plats: number;
+    commandes: number;
+  };
 };
 
 export type SendOtpResponse = {
@@ -98,3 +124,25 @@ export type VerifyOtpResponse = {
   success: boolean;
   token: string;
 };
+
+export type CommandeItemDetail = {
+  id: number;
+  nom: string;
+  quantite: number;
+  prixUnitaire: string | number;
+};
+
+export type CommandeClient = {
+  id: number;
+  statut: string;
+  typeCommande: string;
+  modePaiement: string | null;
+  total: string | number;
+  createdAt: string;
+  clientNom?: string | null;
+  clientTelephone?: string | null;
+  adresseLivraison?: string | null;
+  chambre?: { id: number; numero: string; typeChambre?: string } | null;
+  items: CommandeItemDetail[];
+};
+

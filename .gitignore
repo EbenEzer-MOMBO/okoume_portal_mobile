@@ -42,3 +42,12 @@ app-example
 # generated native folders
 /ios
 /android
+
+# Google / Firebase JSON key credentials
+yahotel-*.json
+*.keystore
+
+# Workspace
+*.code-workspace
+
+

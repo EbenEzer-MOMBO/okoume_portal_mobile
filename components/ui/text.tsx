@@ -49,10 +49,10 @@ export function Text({ variant = 'body', tone = 'default', style, ...props }: Te
 }
 
 const styles = StyleSheet.create({
-  display: { fontFamily: FontFamily.serif, fontSize: 38, letterSpacing: -0.5, lineHeight: 44 },
-  title: { fontFamily: FontFamily.serif, fontSize: 30, letterSpacing: -0.3, lineHeight: 35 },
-  heading: { fontFamily: FontFamily.serif, fontSize: 20, letterSpacing: -0.2, lineHeight: 26 },
-  price: { fontFamily: FontFamily.serifBold, fontSize: 21, lineHeight: 26 },
+  display: { fontFamily: FontFamily.serif, fontSize: 34, letterSpacing: -0.5, lineHeight: 40 },
+  title: { fontFamily: FontFamily.serif, fontSize: 24, letterSpacing: -0.3, lineHeight: 30 },
+  heading: { fontFamily: FontFamily.serif, fontSize: 18, letterSpacing: -0.2, lineHeight: 24 },
+  price: { fontFamily: FontFamily.serifBold, fontSize: 18, lineHeight: 24 },
   cardTitle: { fontFamily: FontFamily.sansSemiBold, fontSize: 16, lineHeight: 21 },
   bodyLg: { fontFamily: FontFamily.sans, fontSize: 15, lineHeight: 21 },
   body: { fontFamily: FontFamily.sans, fontSize: 14, lineHeight: 20 },

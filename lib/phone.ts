@@ -8,12 +8,12 @@ export type PhoneCountry = {
 };
 
 export const PHONE_COUNTRIES: PhoneCountry[] = [
-  { code: 'GA', name: 'Gabon', dialCode: '+241', flag: '🇬🇦', phoneLength: 8, phonePattern: /^[0-9]{8}$/ },
-  { code: 'FR', name: 'France', dialCode: '+33', flag: '🇫🇷', phoneLength: 9, phonePattern: /^[0-9]{9}$/ },
-  { code: 'CM', name: 'Cameroun', dialCode: '+237', flag: '🇨🇲', phoneLength: 8, phonePattern: /^[0-9]{8}$/ },
-  { code: 'CI', name: "Côte d'Ivoire", dialCode: '+225', flag: '🇨🇮', phoneLength: 8, phonePattern: /^[0-9]{8}$/ },
-  { code: 'SN', name: 'Sénégal', dialCode: '+221', flag: '🇸🇳', phoneLength: 8, phonePattern: /^[0-9]{8}$/ },
-  { code: 'MA', name: 'Maroc', dialCode: '+212', flag: '🇲🇦', phoneLength: 9, phonePattern: /^[0-9]{9}$/ },
+  { code: 'GA', name: 'Gabon', dialCode: '+241', flag: '🇬🇦', phoneLength: 10, phonePattern: /^[0-9]{7,10}$/ },
+  { code: 'FR', name: 'France', dialCode: '+33', flag: '🇫🇷', phoneLength: 10, phonePattern: /^[0-9]{9,10}$/ },
+  { code: 'CM', name: 'Cameroun', dialCode: '+237', flag: '🇨🇲', phoneLength: 10, phonePattern: /^[0-9]{8,10}$/ },
+  { code: 'CI', name: "Côte d'Ivoire", dialCode: '+225', flag: '🇨🇮', phoneLength: 10, phonePattern: /^[0-9]{8,10}$/ },
+  { code: 'SN', name: 'Sénégal', dialCode: '+221', flag: '🇸🇳', phoneLength: 10, phonePattern: /^[0-9]{8,10}$/ },
+  { code: 'MA', name: 'Maroc', dialCode: '+212', flag: '🇲🇦', phoneLength: 10, phonePattern: /^[0-9]{9,10}$/ },
 ];
 
 const DIAL_CODES_DESC = [...PHONE_COUNTRIES].sort((a, b) => b.dialCode.length - a.dialCode.length);

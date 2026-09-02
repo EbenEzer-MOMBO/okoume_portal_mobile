@@ -27,7 +27,6 @@ export function PriceBreakdown({
         label={`${pluralize(quote.nights, 'nuit')} × ${formatAmount(nightlyPrice)}`}
         value={formatAmount(quote.subtotal)}
       />
-      <SummaryRow label="Taxe de séjour" value={formatAmount(quote.tax)} />
       {showTotal ? (
         <>
           <Divider />
