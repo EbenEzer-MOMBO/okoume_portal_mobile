@@ -2,7 +2,7 @@
   "expo": {
     "name": "Ya Hôtel",
     "slug": "okoume_portal_mobile",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "okoumeportalmobile",
@@ -11,15 +11,18 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.yahotel.gytx",
+      "buildNumber": "2",
       "infoPlist": {
         "NSAppTransportSecurity": {
           "NSAllowsArbitraryLoads": true,
           "NSAllowsLocalNetworking": true
-        }
+        },
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
       "package": "com.yahotel.gytx",
+      "versionCode": 3,
       "usesCleartextTraffic": true,
       "adaptiveIcon": {
         "backgroundColor": "#F7F4EF",

@@ -86,6 +86,14 @@ export default function OtpScreen() {
   const verifyOtp = useVerifyOtp();
 
   const fetchExistingProfile = async (targetEmail: string) => {
+    const norm = targetEmail.trim().toLowerCase();
+    if (norm === 'apple.review@yahotel.com' || norm === 'demo@yahotel.com') {
+      setPrenom('Apple');
+      setNom('Reviewer');
+      setTelephone('074000000');
+      return;
+    }
+
     // 1. Essayer de charger depuis le stockage local invité
     const local = getGuestProfile();
     if (local) {

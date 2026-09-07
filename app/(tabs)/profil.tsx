@@ -33,6 +33,7 @@ export default function ProfilScreen() {
   const profile = useGuestProfile();
   const [logoutOpen, setLogoutOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
 
   const guestEmail = hasGuestToken
@@ -60,6 +61,11 @@ export default function ProfilScreen() {
     setLogoutOpen(false);
     if (hasGuestToken) await clearGuestToken();
     router.replace('/auth/otp');
+  };
+
+  const confirmDelete = async () => {
+    setDeleteOpen(false);
+    openUrl("https://yahotel.ga/suppression-compte");
   };
 
   const saveProfile = async () => {
@@ -146,13 +152,25 @@ export default function ProfilScreen() {
 
             {/* Politique de confidentialité */}
             <Pressable
-              style={styles.menuRow}
+              style={[styles.menuRow, styles.rowBorder]}
               onPress={() =>
                 openUrl("https://yahotel.ga/politique-de-confidentialite")
               }>
               <View style={styles.menuRowLeft}>
                 <Text variant="bodySm" style={styles.menuLabel}>
                   Politique de confidentialité
+                </Text>
+              </View>
+              <Icon name="chevron" size={14} color={Colors.textMuted} />
+            </Pressable>
+
+            {/* Supprimer mon compte */}
+            <Pressable
+              style={styles.menuRow}
+              onPress={() => setDeleteOpen(true)}>
+              <View style={styles.menuRowLeft}>
+                <Text variant="bodySm" style={[styles.menuLabel, { color: Colors.destructive }]}>
+                  Supprimer mon compte
                 </Text>
               </View>
               <Icon name="chevron" size={14} color={Colors.textMuted} />
@@ -229,6 +247,16 @@ export default function ProfilScreen() {
         tone="destructive"
         onConfirm={confirmLogout}
         onCancel={() => setLogoutOpen(false)}
+      />
+
+      <Dialog
+        visible={deleteOpen}
+        title="Supprimer le compte ?"
+        description="Cette action vous redirigera vers la page de suppression de compte."
+        confirmLabel="Continuer"
+        tone="destructive"
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleteOpen(false)}
       />
     </Screen>
   );

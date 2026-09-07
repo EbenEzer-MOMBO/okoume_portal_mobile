@@ -30,7 +30,7 @@ const looksLocal =
 
 /** Base URL de l'API. En Expo Go, on privilégie l'IP LAN de Metro (pas localhost). */
 export const API_URL =
-  lanHost && looksLocal ? `http://${lanHost}:3000` : (fromEnv ?? 'http://localhost:3000');
+  lanHost && looksLocal ? `http://${lanHost}:3000` : (fromEnv ?? 'https://yahotel.ga');
 
 if (__DEV__) {
   console.log(`[api] API_URL=${API_URL}`);

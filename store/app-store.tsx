@@ -57,22 +57,10 @@ type Action =
   | { type: 'readAllNotifications' }
   | { type: 'togglePref'; key: keyof NotificationPrefs };
 
-const getInitialSearchDates = () => {
-  const today = new Date();
-  today.setHours(14, 0, 0, 0);
-  const arrival = today.getTime();
-  const dep = new Date(today);
-  dep.setDate(dep.getDate() + 3);
-  const departure = dep.getTime();
-  return { arrival, departure };
-};
-
-const initialSearchDates = getInitialSearchDates();
-
 const INITIAL_STATE: State = {
   search: {
-    arrival: initialSearchDates.arrival,
-    departure: initialSearchDates.departure,
+    arrival: 0,
+    departure: 0,
     roomType: ROOM_TYPES[0],
     guests: '2',
     adults: '2',
