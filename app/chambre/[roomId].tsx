@@ -259,7 +259,12 @@ export default function ChambreScreen() {
       </BottomSheet>
 
       <View style={[styles.footer, { paddingBottom: Spacing.xl + insets.bottom }]}>
-        <Button label="Réserver" size="lg" onPress={book} />
+        <Button 
+          label="Réserver" 
+          size="lg" 
+          onPress={book} 
+          disabled={!arrival || !departure} 
+        />
       </View>
     </Screen>
   );

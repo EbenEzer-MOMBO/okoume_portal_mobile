@@ -7,7 +7,7 @@ import { Colors, Radius, Spacing } from "@/constants/theme";
 import { formatDay } from "@/lib/format";
 import { useAppStore } from "@/store/app-store";
 import { useState } from "react";
-import { Platform, Pressable, StyleSheet, UIManager, View } from "react-native";
+import { Platform, Pressable, ScrollView, StyleSheet, UIManager, View } from "react-native";
 import { router } from "expo-router";
 
 if (
@@ -80,7 +80,7 @@ export function MobileSearchWidget() {
         onClose={() => setIsSheetOpen(false)}
         title=""
       >
-        <View style={styles.sheetContent}>
+        <ScrollView contentContainerStyle={styles.sheetContent} showsVerticalScrollIndicator={false}>
           {dateError ? (
             <Text
               variant="caption"
@@ -164,7 +164,7 @@ export function MobileSearchWidget() {
             onPress={handleSearch} 
             style={styles.searchButton}
           />
-        </View>
+        </ScrollView>
       </BottomSheet>
     </View>
   );

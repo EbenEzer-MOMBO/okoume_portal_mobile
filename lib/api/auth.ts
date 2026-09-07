@@ -4,7 +4,7 @@ import { SendOtpResponse, VerifyOtpResponse } from '@/lib/api/types';
 /** POST /api/auth/send-otp — public. Envoie un code à 6 chiffres à l'e-mail donné. */
 export async function sendOtp(email: string): Promise<SendOtpResponse> {
   const normEmail = email.trim().toLowerCase();
-  if (normEmail === 'apple.review@yahotel.com' || normEmail === 'demo@yahotel.com') {
+  if (normEmail === 'apple.review@yahotel.ga' || normEmail === 'demo@yahotel.com') {
     return { success: true, message: 'Code démo (123456)' };
   }
   return apiRequest<SendOtpResponse>('/api/auth/send-otp', { method: 'POST', body: { email } });
@@ -18,7 +18,7 @@ export async function verifyOtp(email: string, code: string): Promise<VerifyOtpR
   const normEmail = email.trim().toLowerCase();
   const normCode = code.trim();
 
-  if ((normEmail === 'apple.review@yahotel.com' || normEmail === 'demo@yahotel.com') && normCode === '123456') {
+  if ((normEmail === 'apple.review@yahotel.ga' || normEmail === 'demo@yahotel.com') && normCode === '123456') {
     try {
       const res = await apiRequest<VerifyOtpResponse>('/api/auth/verify-otp', { method: 'POST', body: { email, code } });
       if (res.token) return res;

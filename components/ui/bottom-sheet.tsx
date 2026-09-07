@@ -38,6 +38,7 @@ const styles = StyleSheet.create({
   root: { flex: 1, justifyContent: 'flex-end' },
   overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: Colors.overlay },
   sheet: {
+    maxHeight: '90%',
     backgroundColor: Colors.surface,
     borderTopLeftRadius: Radius.sheet,
     borderTopRightRadius: Radius.sheet,

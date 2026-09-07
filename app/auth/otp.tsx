@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useRef, useState } from 'react';
-import { Image, ImageBackground, KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { Image, ImageBackground, KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, StyleSheet, TextInput, View, Alert } from 'react-native';
 
 import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icon';
@@ -87,7 +87,7 @@ export default function OtpScreen() {
 
   const fetchExistingProfile = async (targetEmail: string) => {
     const norm = targetEmail.trim().toLowerCase();
-    if (norm === 'apple.review@yahotel.com' || norm === 'demo@yahotel.com') {
+    if (norm === 'apple.review@yahotel.ga' || norm === 'demo@yahotel.com') {
       setPrenom('Apple');
       setNom('Reviewer');
       setTelephone('074000000');
@@ -268,6 +268,25 @@ export default function OtpScreen() {
                       error={error}
                     />
 
+                    <View style={styles.resendContainer}>
+                      <Text variant="caption" style={styles.resendText}>
+                        Vous n'avez rien reçu ?{' '}
+                      </Text>
+                      <Pressable
+                        onPress={() => {
+                          setCode('');
+                          setError('');
+                          sendOtp.mutate(email.trim(), {
+                            onSuccess: () => Alert.alert('Code renvoyé', 'Un nouveau code a été envoyé à ' + email.trim()),
+                            onError: (err) => setError(extractMessage(err, "Impossible de renvoyer le code.")),
+                          });
+                        }}>
+                        <Text variant="caption" style={styles.resendLink}>
+                          Renvoyer le code
+                        </Text>
+                      </Pressable>
+                    </View>
+
                     <Button
                       label="Vérifier"
                       onPress={submitCode}
@@ -434,6 +453,21 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     textDecorationLine: 'underline',
     fontWeight: '700',
+  },
+  resendContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginTop: Spacing.xl,
+    marginBottom: -Spacing.sm, // To balance the margin before the submit button
+  },
+  resendText: {
+    color: '#FFFFFF',
+    opacity: 0.9,
+  },
+  resendLink: {
+    color: '#FFFFFF',
+    textDecorationLine: 'underline',
+    fontWeight: 'bold',
   },
   submit: { marginTop: Spacing.xl },
 });
